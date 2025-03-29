@@ -1,0 +1,4 @@
+README: Below are the set of commands to convert .gdf files to .mat files
+DEPENDENCIES: Biosig3.8.4
+
+launch GDF_to_MAT.mlx live script
