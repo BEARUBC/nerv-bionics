@@ -7,8 +7,16 @@ from mne_lsl.lsl import (
 )
 import numpy as np
 import matplotlib.pyplot as plt
+from brainflow.board_shim import BoardShim, BrainFlowInputParams, LogLevels, BoardIds, BrainFlowPresets
+from brainflow.data_filter import DataFilter, FilterTypes, DetrendOperations
 
-# first resolve an EEG stream on the lab network
+import visualization
+
+params = BrainFlowInputParams()
+params.master_board = BoardIds.SYNTHETIC_BOARD
+board = BoardShim(BoardIds.STREAMING_BOARD, params)
+
+# resolve an EEG stream on the lab network
 print("looking for an EEG stream...")
 streams = resolve_streams()
 
@@ -19,6 +27,8 @@ inlet.open_stream()
 # get stats about the data stream
 sinfo = inlet.get_sinfo()
 print(sinfo)
+
+visualization.Graph(board)
 
 # arrays for each channel
 ch1=[]
