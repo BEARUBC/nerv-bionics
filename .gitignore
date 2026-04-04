@@ -1,0 +1,8 @@
+acquisition/data/stream.csv
+acquisition/data/train_features.csv
+acquisition/data/train_feature_summary.csv
+acquisition/data/stream.csv
+acquisition/data/train_features.csv
+acquisition/data/train_feature_summary.csv
+acquisition/__pycache__/
+acquisition/*.pyc

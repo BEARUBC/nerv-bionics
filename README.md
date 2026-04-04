@@ -28,3 +28,12 @@ https://www.bbci.de/competition/iv/
 
 ### A CSV converted above dataset:
 https://www.kaggle.com/datasets/aymanmostafa11/eeg-motor-imagery-bciciv-2a/data 
+
+## Acquisition pipeline
+
+The acquisition workflow is split into two modules to keep responsibilities separate:
+
+- [acquisition/data_streaming.py](acquisition/data_streaming.py): dataset loading, event parsing, trial trimming, and live playback.
+- [acquisition/feature_export.py](acquisition/feature_export.py): per-trial mu/beta feature extraction and CSV export.
+
+The formal interface contract is documented in [acquisition/PIPELINE_SPEC.md](acquisition/PIPELINE_SPEC.md).
