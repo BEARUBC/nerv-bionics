@@ -30,6 +30,25 @@ parsed_event_pos = []  # pairs of [event name, position]
 
 # plays back a CSV file as if it were a live EEG stream and shows the graph
 def import_to_mne(file):
+    """Replay a BrainFlow-formatted CSV file through the live graph.
+
+    Parameters
+    ----------
+    file : str
+        Path to the BrainFlow-compatible CSV file to replay.
+
+    Returns
+    -------
+    None
+        This function only runs the playback session and prints diagnostics.
+
+    Side Effects
+    ------------
+    - Starts a BrainFlow playback board session.
+    - Opens the live visualization window.
+    - Prints stream metadata to the console.
+    - Releases the BrainFlow session when playback finishes or fails.
+    """
 
     # figure out how long the recording is
     csv = pd.read_csv(file, header=None)
@@ -89,6 +108,26 @@ def import_to_mne(file):
 
 # turns a .mat file into a CSV that brainflow understands
 def create_csv(file):
+    """Convert a MATLAB EEG recording into a BrainFlow-compatible CSV.
+
+    Parameters
+    ----------
+    file : str
+        Base dataset name without extension, for example 'A01T'.
+
+    Returns
+    -------
+    None
+        The converted CSV is written to disk.
+
+    Side Effects
+    ------------
+    - Loads data/<file>.mat.
+    - Removes EOG channels.
+    - Pads the matrix to the 32-column BrainFlow layout.
+    - Writes data/<file>.csv.
+    - Prints dataset keys and the resulting row count.
+    """
 
     mat = scipy.io.loadmat(f'data/{file}.mat')
     print(mat.keys())
@@ -114,12 +153,50 @@ def create_csv(file):
 
 # grabs event markers from the .mat file
 def get_events(file):
+    """Load raw event markers and convert them into parsed event labels.
+
+    Parameters
+    ----------
+    file : str
+        Base dataset name without extension, for example 'A01T'.
+
+    Returns
+    -------
+    None
+        The parsed event table is stored in module-level state.
+
+    Side Effects
+    ------------
+    - Loads ./data/<file>.mat.
+    - Populates parsed_event_pos via parse_event().
+    """
+
     mat = scipy.io.loadmat(f'./data/{file}.mat')
     parsed_event_pos = parse_event(mat['EVENTTYP'], mat['EVENTPOS'])
 
 
 # turns event codes (numbers) into readable names
 def parse_event(event_type, event_pos):
+    """Convert raw event codes into readable event labels and positions.
+
+    Parameters
+    ----------
+    event_type : array-like
+        Raw event code values from the .mat file.
+    event_pos : array-like
+        Sample positions aligned with event_type.
+
+    Returns
+    -------
+    list[list[object]]
+        Parsed event entries of the form [event_name, sample_position].
+
+    Side Effects
+    ------------
+    - Appends parsed labels to the module-level parsed_event list.
+    - Appends sample positions to the module-level parsed_pos list.
+    - Appends paired entries to the module-level parsed_event_pos list.
+    """
 
     # keeps count so we can label them like "left hand #1", "left hand #2", etc
     event_index = {'Idling EEG (eyes open)': 0,
@@ -182,6 +259,26 @@ def parse_event(event_type, event_pos):
 
 # cuts out only the trials the user wants from the full recording
 def trim_desired_data(desired_trials, csv):
+    """Trim selected trials from the full recording and save them for replay.
+
+    Parameters
+    ----------
+    desired_trials : list[int]
+        Indices into parsed_event_pos that identify the desired cue trials.
+    csv : pandas.DataFrame
+        The full BrainFlow-formatted EEG recording.
+
+    Returns
+    -------
+    None
+        The trimmed trial data is written to data/stream.csv.
+
+    Side Effects
+    ------------
+    - Prints trial start, cue, and end positions.
+    - Writes a new data/stream.csv file.
+    """
+
     desired_trial_pos = []
     desired_trial_start_pos = []
     desired_trial_end_pos = []
@@ -214,6 +311,19 @@ def trim_desired_data(desired_trials, csv):
 
 # prints all 22 EEG channels as a table
 def show_data(data):
+    """Print the first 22 EEG channels as a pandas table.
+
+    Parameters
+    ----------
+    data : numpy.ndarray
+        BrainFlow data matrix where each row is a channel.
+
+    Returns
+    -------
+    None
+        The channel table is printed to the console.
+    """
+
     df = pd.DataFrame()
     for i in range(22):
         df["node ", (i + 1)] = data[i]
@@ -221,6 +331,13 @@ def show_data(data):
 
 # shows a menu of all events so user can pick which trials to look at
 def table_of_contents():
+    """Print the parsed event table with labels and sample positions.
+
+    Returns
+    -------
+    None
+        The event table is printed to the console.
+    """
 
     df = pd.DataFrame()
     df['EVENT'] = parsed_event
@@ -229,6 +346,28 @@ def table_of_contents():
 
 # the main flow: load data, pick trials, visualize
 def launch_board_ds2a(file, stream_duration):
+    """Load a dataset, let the user choose trials, and replay them.
+
+    Parameters
+    ----------
+    file : str
+        Base dataset name without extension.
+    stream_duration : float
+        Kept for compatibility with the original script; not used directly.
+
+    Returns
+    -------
+    None
+        This function coordinates the full interactive playback workflow.
+
+    Side Effects
+    ------------
+    - Creates data/<file>.csv if missing.
+    - Prints the event table.
+    - Prompts the user for trial indices.
+    - Writes data/stream.csv.
+    - Starts live playback on the trimmed stream.
+    """
 
     desired_trials = []
 
@@ -262,6 +401,14 @@ def launch_board_ds2a(file, stream_duration):
 
 # kicks everything off with the A04T dataset
 def main():
+    """Program entry point for the playback workflow.
+
+    Returns
+    -------
+    None
+        Delegates to launch_board_ds2a().
+    """
+
     launch_board_ds2a('A04T', 0)
 
 if __name__ == '__main__':
