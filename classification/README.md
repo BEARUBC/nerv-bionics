@@ -447,6 +447,8 @@ demonstration of why the epoch window mattered so much (section 2).
 
 At <http://127.0.0.1:8000/identify>.
 
+![Identifying EEG signals in the browser](../docs/identify-demo.gif)
+
 The live stream plays trials in order. This one hands you the list: every signal
 the model has never seen, each with a thumbnail of its waveform and its real
 label. Click one and the model identifies it while you watch, with a confidence

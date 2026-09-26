@@ -29,6 +29,20 @@ Then open:
 | <http://127.0.0.1:8000/live> | Live stream — trials play past the detector in real time |
 | <http://127.0.0.1:8000/identify> | Pick any signal from a list and watch the model identify it |
 
+### `/identify` in use
+
+![Identifying EEG signals in the browser](docs/identify-demo.gif)
+
+Every signal in the list is one the model was **not** trained on, and each row
+shows its real label. Pick one and it plays through the detector window by
+window, with the confidence ring settling on the first complete window.
+
+The clip shows both outcomes on purpose: the first signal is identified as
+`foot` at 86% and is correct; the second is called `left` at 37% when it was
+really `foot`. Low confidence on the miss is the usual pattern — correct calls
+sit around 70–90%, misses around 35–55% — which is what makes the confidence
+floor worth using.
+
 No model file needs to be trained first: each page trains what it needs on the
 spot and caches it. Ctrl+C in the terminal stops the server.
 
