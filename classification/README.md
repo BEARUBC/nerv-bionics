@@ -22,7 +22,7 @@ landed between 0.35 and 0.39 accuracy against a 0.25 chance level.
 
 This package re-runs the survivors on a **0.5–3.5 s** window cut straight from the
 raw `.mat` recordings in `acquisition/data/`. Same models, same protocol, correct
-window — and accuracy roughly doubles. The window mattered far more than the model
+window, and accuracy roughly doubles. The window mattered far more than the model
 choice.
 
 The re-run also changed the shortlist. EEGNet was expected to take rank 2 on
@@ -52,7 +52,7 @@ microsecond.
 
 ## 3. The three selected models
 
-### Rank 1 — Riemannian tangent space + logistic regression (`riemann_ts_lr`)
+### Rank 1: Riemannian tangent space + logistic regression (`riemann_ts_lr`)
 
 Each trial becomes a 22×22 covariance matrix. Those live on a curved manifold of
 symmetric positive-definite matrices, so the pipeline projects them into the
@@ -68,12 +68,12 @@ manifold, and then fits multinomial logistic regression.
 - No hyperparameters worth tuning, which matters when every user needs their own
   calibration.
 
-### Rank 2 — Riemannian MDM (`riemann_mdm`)
+### Rank 2: Riemannian MDM (`riemann_mdm`)
 
 Minimum distance to mean: compute one geometric mean covariance per class, then
 assign each trial to the nearest class mean under the affine-invariant metric.
 
-- **Cheapest model to calibrate** — fitting is four averages, with no decision
+- **Cheapest model to calibrate**, fitting is four averages, with no decision
   boundary to optimise. Attractive for recalibrating mid-session as electrodes
   drift.
 - **Best cross-subject accuracy of anything tested** (0.441), so it degrades most
@@ -83,7 +83,7 @@ assign each trial to the nearest class mean under the affine-invariant metric.
   no extra code and they can run side by side as a cross-check.
 - Gives up five points of within-subject accuracy for that.
 
-### Rank 3 — CSP + LDA (`csp_lda`)
+### Rank 3: CSP + LDA (`csp_lda`)
 
 Common Spatial Patterns finds a small set of electrode mixes that maximally
 separate the classes, and LDA classifies their log-variances. This is the
@@ -100,7 +100,7 @@ reference pipeline in the BCI literature.
 
 | Model | Verdict |
 |---|---|
-| EEGNet | **Last on the composite score** (65.4). Lowest accuracy and κ, 117 s to calibrate, and it lost the cross-subject axis to Riemannian MDM. A data-volume result — see the note in section 4 — not a judgement on the architecture. Stays in the registry. |
+| EEGNet | **Last on the composite score** (65.4). Lowest accuracy and κ, 117 s to calibrate, and it lost the cross-subject axis to Riemannian MDM. A data-volume result (see the note in section 4) not a judgement on the architecture. Stays in the registry. |
 | CSP + SVM | Tracks CSP + LDA within noise but adds a kernel and two hyperparameters to tune per user. |
 | FBCSP + LR | Slowest model in the notebook by two orders of magnitude (1251 s) for accuracy no better than CSP + LDA. The cost/benefit is indefensible. |
 | XGBoost on CSP | Lowest accuracy and κ of all eight in the notebook. Tree ensembles add nothing on six log-variance features. |
@@ -135,7 +135,7 @@ It was picked as a candidate for rank 2 on the strength of its cross-subject
 transfer, and the measurement did not support that. It came last on the composite
 score: lowest accuracy (0.543), lowest κ (0.390), 117 s to calibrate against 0.21 s
 for the winner, and even on the cross-subject axis it lost to Riemannian MDM
-(0.361 vs 0.441) — the one axis it was supposed to own.
+(0.361 vs 0.441), the one axis it was supposed to own.
 
 Read this as a **data-volume result, not a verdict on the architecture**. Each fold
 trained on roughly 214 trials from a single subject. That is far below what a CNN
@@ -162,7 +162,7 @@ the models.
 Two commands. The first trains the winning pipeline on your recordings and writes
 it to `models/`; the second loads it and runs detection.
 
-### Step 1 — train
+### Step 1, train
 
 ```bash
 python -m classification.train --subjects A01T
@@ -184,8 +184,8 @@ the held-back part before saving:
   tongue           1       0       0      16
 ```
 
-The confusion matrix is the useful part. Here `foot` is the weak class — 5 of its
-17 trials were called `tongue` — while `right` was never missed. That tells you
+The confusion matrix is the useful part. Here `foot` is the weak class, 5 of its
+17 trials were called `tongue`, while `right` was never missed. That tells you
 where to spend effort far better than a single accuracy number does.
 
 After reporting, it retrains on all the trials and saves to
@@ -193,7 +193,7 @@ After reporting, it retrains on all the trials and saves to
 filter settings alongside the weights, so it cannot be fed the wrong kind of input
 by accident.
 
-### Step 2 — detect
+### Step 2, detect
 
 ```bash
 python -m classification.detect --model models/a01t.joblib --subject A04T
@@ -220,13 +220,13 @@ Useful flags:
 ### Reading the numbers honestly
 
 Running the A01T detector back over A01T gives **100%**, and that number is
-worthless — those trials were in its training set. The command prints a warning
+worthless, those trials were in its training set. The command prints a warning
 when you do this. The three numbers that mean something:
 
 | What you run | Result | What it tells you |
 |---|---|---|
 | `train --subjects A01T` (held-out) | **85.5%** | How well it reads a person it has been calibrated on |
-| `detect --subject A01T` (trained on A01T) | 100% | Nothing — it memorised these trials |
+| `detect --subject A01T` (trained on A01T) | 100% | Nothing: it memorised these trials |
 | `detect --subject A04T` (trained on A01T) | **33.2%** | How well it reads a stranger: above the 25% chance level, but far from usable |
 
 That last row is the honest state of cross-subject decoding, and it is why
@@ -243,7 +243,7 @@ every 0.5 s the decoder classifies the most recent 3-second window and averages
 the last three results.
 
 Stream mode deliberately reads 2 seconds further past the cue than the detector's
-window, so the window has room to slide — otherwise the buffer only fills on the
+window, so the window has room to slide, otherwise the buffer only fills on the
 very last sample and you get exactly one decision. You should see about 5
 decisions per trial at ~2 ms each:
 
@@ -298,7 +298,7 @@ It opens <http://127.0.0.1:8000> in your browser. Real form controls, a Run
 button, and a table of every run so you can compare settings. Ctrl+C in the
 terminal stops it.
 
-Nothing leaves your machine — the server binds to loopback only and the page
+Nothing leaves your machine, the server binds to loopback only and the page
 talks to it over plain JSON.
 
 | Control | What it changes |
@@ -336,7 +336,7 @@ some have numpy, scikit-learn and pyriemann:
 | `python3` | `/opt/homebrew/bin/python3` | no |
 
 Running the server with the wrong one dies during import, so nothing binds a port
-and the browser reports **ERR_CONNECTION_REFUSED** — the failure appears in the
+and the browser reports **ERR_CONNECTION_REFUSED**, the failure appears in the
 terminal, not the browser. The launcher finds an interpreter that works and uses
 it. Every entry point also checks its own interpreter first and prints which one
 to use instead, rather than a bare `ModuleNotFoundError`.
@@ -366,13 +366,13 @@ opening a browser.
 
 | Try this | What you should see |
 |---|---|
-| A01T at 0.5–3.5 s | ~82% — the easy subject at its best window |
+| A01T at 0.5–3.5 s | ~82%: the easy subject at its best window |
 | A04T at 0.5–3.5 s, then 1.0–4.0 s | ~57% → ~60%: same subject, better window |
 | Either subject at 0.5–1.5 s | Run is disabled; the window is too short |
 | Type of data → `tongue` | Scores that class alone |
 | Model → CSP + LDA | Around two points behind, and slower to fit |
 
-## 7. The live view — you see the answer, the model does not
+## 7. The live view, you see the answer, the model does not
 
 At <http://127.0.0.1:8000/live>, or from the link at the top of the test bench.
 
@@ -387,10 +387,10 @@ Two things enforce it, not one:
 
 1. **It never trained on what you watch.** `LiveSession` splits the recording,
    fits the detector on 70% and streams only the held-out 30%. Every trial on
-   screen is one the model has never met — the header reports the split
+   screen is one the model has never met, the header reports the split
    (for A01T: trained on 191 trials, streaming 82 unseen).
 2. **The label is not on the model's path.** `LiveSession._frames_for()` takes the
-   signal as its only argument — the label is not even a parameter, so it cannot
+   signal as its only argument, the label is not even a parameter, so it cannot
    reach the classifier by accident. It is attached to the JSON response after the
    probabilities exist, purely for display.
 
@@ -416,7 +416,7 @@ curl -s -X POST http://127.0.0.1:8000/api/live/trial \
 | **show the answer straight away** | Unblurs the label immediately, if you would rather not guess |
 
 A running tally sits top right and a log of the last 15 trials at the bottom.
-Expect around **73%** on A01T — these are unseen trials, so it is an honest number
+Expect around **73%** on A01T, these are unseen trials, so it is an honest number
 rather than the 100% you get by re-running a detector over its own training data.
 
 Settings work in the URL too:
@@ -467,7 +467,7 @@ A tally at the top keeps score across everything you have tried, and rows you
 have already run are marked `identified` or `missed`, so you can work through the
 list and see the pattern for yourself.
 
-Direct links work here too — handy for showing someone a specific case:
+Direct links work here too, handy for showing someone a specific case:
 
 ```
 http://127.0.0.1:8000/identify?subject=A01T&signal=1
@@ -484,7 +484,7 @@ frame, so everything on screen describes the same moment.
 
 Confidence is worth watching rather than trusting. On a correct identification it
 is typically 70–90%; on a miss it is often 35–55%, which is what makes
-`--min-confidence` useful in the detector. But it is not reliable — section 14
+`--min-confidence` useful in the detector. But it is not reliable, section 14
 shows the model being 100% confident and wrong on a subject it was not trained
 on.
 
@@ -502,7 +502,7 @@ render straight to an image for a report:
 python -m classification.app --subject A04T --tmin 1.0 --tmax 4.0 --snapshot result.png
 ```
 
-## 10. Watching it work — the replay UI
+## 10. Watching it work, the replay UI
 
 `ui.py` opens a window that replays a recording through the detector and draws
 what it is doing: the EEG going in, the four class probabilities updating as the
@@ -514,10 +514,10 @@ python -m classification.ui --model models/a01t.joblib --subject A01T
 
 Three panels:
 
-- **top** — the C3 / Cz / C4 traces inside the current 3-second window
-- **bottom left** — a bar per class, with the true class marked and the 25% chance
+- **top**, the C3 / Cz / C4 traces inside the current 3-second window
+- **bottom left**, a bar per class, with the true class marked and the 25% chance
   line drawn in red
-- **bottom right** — the current call, its confidence, and a running score
+- **bottom right**, the current call, its confidence, and a running score
 
 ### One class at a time
 
@@ -561,7 +561,7 @@ exposes something a single accuracy number hides:
 | foot | 13.4% |
 | tongue | 0.0% |
 
-The overall 33% is not "uniformly mediocre" — the model has collapsed toward
+The overall 33% is not "uniformly mediocre", the model has collapsed toward
 `right` on an unfamiliar brain. That is a different problem from being generally
 weak, and it points at class-balance and domain-adaptation work rather than at a
 better classifier.
@@ -588,7 +588,7 @@ What they cover:
 | wrong window length / channel count raises | The worst failure mode: confident answers on malformed input |
 | confidence floor makes it decline | The safety gate actually gating |
 | all three selected models still train | A dependency upgrade breaking one of them |
-| online decoder matches offline | Offline/online preprocessing mismatch — the classic reason a decoder cross-validates well and fails live |
+| online decoder matches offline | Offline/online preprocessing mismatch, the classic reason a decoder cross-validates well and fails live |
 | live view streams a held-out split | The live view quietly starting to show trials the model trained on |
 | no frame carries the true label | The answer leaking onto the model's path |
 | `_frames_for()` takes only the signal | A future edit passing the label in "just for logging" |
@@ -623,11 +623,11 @@ do not need it.
 | `benchmark.py` | Measures all six axes, prints the scorecard, writes `acquisition/data/model_scorecard.csv` |
 | `realtime.py` | Rolling-buffer online decoder, plus `simulate()` to check online matches offline |
 | `detector.py` | The shipping detector: train, save, load, classify. Carries its own preprocessing settings |
-| `train.py` | CLI — train on your recordings, print an honest held-out report, save to `models/` |
-| `detect.py` | CLI — load a saved detector and run it over a recording, per trial or streaming |
-| `ui.py` | CLI — a live window showing the traces, the class probabilities and the current call |
-| `app.py` | CLI — the matplotlib test bench: choose recording, class, window and model, press Run |
-| `server.py` | CLI — the test bench served to your browser, plus the live view, with a run-history table |
+| `train.py` | CLI: train on your recordings, print an honest held-out report, save to `models/` |
+| `detect.py` | CLI: load a saved detector and run it over a recording, per trial or streaming |
+| `ui.py` | CLI: a live window showing the traces, the class probabilities and the current call |
+| `app.py` | CLI: the matplotlib test bench: choose recording, class, window and model, press Run |
+| `server.py` | CLI: the test bench served to your browser, plus the live view, with a run-history table |
 | `live.py` | The live session: trains on one split, streams the other, keeps the label off the model's path |
 | `live_page.py` | The live stream's HTML, kept out of `server.py` so both stay readable |
 | `identify_page.py` | The identify view's HTML: the signal picker and confidence ring |
@@ -641,7 +641,7 @@ guessed. Ordered by what it actually returned.
 
 ### Already applied
 
-**Stronger regularisation — worth +2.7 points overall, +6 on the hard subject.**
+**Stronger regularisation, worth +2.7 points overall, +6 on the hard subject.**
 The tangent space of a 22×22 covariance has 253 dimensions, and a subject gives a
 few hundred trials, so scikit-learn's default `C=1.0` overfits. Sweeping it found
 a plateau between 0.003 and 0.02:
@@ -653,9 +653,9 @@ a plateau between 0.003 and 0.02:
 
 `TANGENT_SPACE_C` in `models.py` is now 0.01. Note where the gain landed: it cost
 the easy subject 0.7 points and rescued the hard one by 6. That is the right
-trade — the weak subject is the one limiting the system.
+trade, the weak subject is the one limiting the system.
 
-**Per-subject window tuning — worth +3 points on A04T.** The best window is not
+**Per-subject window tuning, worth +3 points on A04T.** The best window is not
 the same for everyone:
 
 | Subject | best window | accuracy |
@@ -674,7 +674,7 @@ Together these take the two-subject mean from **0.664 to 0.708**.
 ### Do this next
 
 **Per-user calibration beats everything else, and needs about a minute.** This is
-the measured learning curve on A01T — accuracy against how many of that person's
+the measured learning curve on A01T, accuracy against how many of that person's
 own trials the model has seen:
 
 | Calibration trials | ≈ minutes | Accuracy |
@@ -685,7 +685,7 @@ own trials the model has seen:
 | 80 | 10 | 0.763 |
 | 160 | 20 | 0.798 |
 
-Eight trials — one minute of recording — takes a new user from 33% to 56%. No
+Eight trials (one minute of recording) takes a new user from 33% to 56%. No
 amount of algorithmic work on the zero-calibration case came close to that. If
 you only do one thing, make the app record a short calibration block on first use.
 
@@ -707,8 +707,8 @@ pooling is consistently worse. Naive concatenation is not transfer learning.
 |---|---|
 | Frequency band | 8–30 Hz already optimal. 4–40, 8–35, 6–32, 4–30, 8–26 and 1–40 all scored lower. Do not spend time here. |
 | Covariance estimator | OAS (0.664) beat Ledoit-Wolf (0.657) and the plain sample covariance (0.651). Already the default. |
-| Soft-vote ensemble of all three models | 0.672 vs 0.664 for TS+LR alone — inside the noise, for triple the compute. |
-| Riemannian re-centring | Fixes the *collapse* — cross-subject `tongue` recall goes 0.00 → 0.26 and predictions spread across all four classes — but overall accuracy only moves 0.332 → 0.355. Worth it only in the zero-calibration case, and even then calibration beats it. |
+| Soft-vote ensemble of all three models | 0.672 vs 0.664 for TS+LR alone: inside the noise, for triple the compute. |
+| Riemannian re-centring | Fixes the *collapse*: cross-subject `tongue` recall goes 0.00 → 0.26 and predictions spread across all four classes, but overall accuracy only moves 0.332 → 0.355. Worth it only in the zero-calibration case, and even then calibration beats it. |
 
 ### Still untested, in order of likely payoff
 
@@ -720,7 +720,7 @@ pooling is consistently worse. Naive concatenation is not transfer learning.
    loosened, recovering the 15–26 trials per subject currently discarded.
 3. **Trial-level rejection by confidence during calibration.** Drop the trials the
    user plainly was not concentrating on, rather than trusting every cue.
-4. **Proper transfer learning** — `pyriemann.transfer.MDWM` weights source and
+4. **Proper transfer learning**, `pyriemann.transfer.MDWM` weights source and
    target domains rather than concatenating them, which is what failed above.
 
 ## 15. References

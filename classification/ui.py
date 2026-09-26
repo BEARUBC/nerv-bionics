@@ -234,7 +234,7 @@ def draw(fig, axes, frame, detector, channel_rows, fs):
     if frame['declined']:
         headline, sub = 'no call', f'leaning {label}, below the confidence floor'
     else:
-        headline, sub = label, ('correct' if hit else f'wrong — actually {truth}')
+        headline, sub = label, ('correct' if hit else f'wrong, actually {truth}')
 
     ax.text(0.5, 0.78, 'DETECTED', ha='center', fontsize=9, color=MUTED,
             family='monospace', transform=ax.transAxes)
@@ -316,7 +316,7 @@ def main(argv=None):
     print(f'Building {len(y)} trials...')
     frames = build_frames(detector, X, y, step_s=args.step, smoothing=args.smoothing)
     if not frames:
-        print('No decisions produced — the trials are shorter than the model window.', file=sys.stderr)
+        print('No decisions produced, the trials are shorter than the model window.', file=sys.stderr)
         return 1
 
     channel_rows = [

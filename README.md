@@ -51,7 +51,7 @@ the three models selected after benchmarking eight candidates:
 | 3 | CSP + LDA | `csp_lda` | 0.646 | 1.05 s |
 
 Chance is 0.250 across four classes. CSP+SVM and EEGNet stay available in the
-registry but were not selected — EEGNet came last on this dataset's two subjects,
+registry but were not selected, EEGNet came last on this dataset's two subjects,
 which is a data-volume result worth revisiting once the other seven recordings are
 added.
 
@@ -62,7 +62,7 @@ added.
 ```
 
 `run_ui.sh` picks an interpreter that has the dependencies. For the other tools,
-use `python` (anaconda) rather than `python3` on this machine — `python3` resolves
+use `python` (anaconda) rather than `python3` on this machine, `python3` resolves
 to a Homebrew install without numpy:
 
 ```bash

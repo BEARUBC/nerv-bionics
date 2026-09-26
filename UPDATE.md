@@ -1,4 +1,4 @@
-# Update — EEG model layer and live analysis
+# Update: EEG model layer and live analysis
 
 **Branch:** `Phumi_Update` (from `farrel-update/eeg-pipeline`)
 
@@ -10,7 +10,7 @@ for watching it work.
 
 ## Run it
 
-Everything needed is in the repository — the two BCI IV 2a recordings are already
+Everything needed is in the repository, the two BCI IV 2a recordings are already
 tracked, so there is nothing to download.
 
 ```bash
@@ -25,8 +25,8 @@ Then open:
 
 | URL | What it is |
 |---|---|
-| <http://127.0.0.1:8000> | Test bench — pick a recording, class, window and model, press Run |
-| <http://127.0.0.1:8000/live> | Live stream — trials play past the detector in real time |
+| <http://127.0.0.1:8000> | Test bench: pick a recording, class, window and model, press Run |
+| <http://127.0.0.1:8000/live> | Live stream: trials play past the detector in real time |
 | <http://127.0.0.1:8000/identify> | Pick any signal from a list and watch the model identify it |
 
 ### `/identify` in use
@@ -39,8 +39,8 @@ window, with the confidence ring settling on the first complete window.
 
 The clip shows both outcomes on purpose: the first signal is identified as
 `foot` at 86% and is correct; the second is called `left` at 37% when it was
-really `foot`. Low confidence on the miss is the usual pattern — correct calls
-sit around 70–90%, misses around 35–55% — which is what makes the confidence
+really `foot`. Low confidence on the miss is the usual pattern, correct calls
+sit around 70–90%, misses around 35–55%, which is what makes the confidence
 floor worth using.
 
 No model file needs to be trained first: each page trains what it needs on the
@@ -95,7 +95,7 @@ files at **0.5–3.5 s**, with no change to any model, roughly doubles accuracy:
 
 EEGNet was expected to take rank 2 on cross-subject transfer. It finished last of
 five: 0.543 accuracy, 117 s to calibrate, and it lost the cross-subject axis to
-Riemannian MDM (0.361 vs 0.441) — the one axis it was picked for.
+Riemannian MDM (0.361 vs 0.441), the one axis it was picked for.
 
 Read that as a **data-volume result, not a verdict on the architecture**. Each
 fold trained on roughly 214 trials from one subject, far below what a CNN needs.
@@ -106,7 +106,7 @@ subjects are added before concluding anything.
 
 - **Regularisation.** The tangent space of a 22×22 covariance has 253 dimensions
   and a subject gives a few hundred trials, so scikit-learn's default `C=1.0`
-  overfits. `C=0.01` lifts the mean from 0.664 to 0.691 — and almost all of the
+  overfits. `C=0.01` lifts the mean from 0.664 to 0.691, and almost all of the
   gain lands on the harder subject (0.504 → 0.565), which is the right trade.
 - **Per-subject epoch window.** A01T peaks at 0.5–3.5 s, A04T at 1.0–4.0 s.
   `--tune-window` searches per user and is worth about 3 points on A04T.
@@ -122,7 +122,7 @@ enforce it:
 1. **The model never trains on what you watch.** `LiveSession` splits the
    recording, fits the detector on 70% and streams only the held-out 30%.
 2. **The label is not on the model's path.** `LiveSession._frames_for()` takes
-   the signal as its only argument — the label is not even a parameter. It is
+   the signal as its only argument, the label is not even a parameter. It is
    attached to the JSON response after the probabilities exist, purely for
    display.
 
@@ -147,14 +147,14 @@ curl -s -X POST http://127.0.0.1:8000/api/live/trial \
 |---|---|---|
 | `train --subjects A01T` (held out) | **85.5%** | Reading a person the model is calibrated on |
 | `/identify` or `/live` on A01T | **~73–78%** | Same, through the streaming path, on unseen trials |
-| `detect --subject A01T` with the A01T model | 100% | **Nothing** — those trials were its training data |
+| `detect --subject A01T` with the A01T model | 100% | **Nothing**: those trials were its training data |
 | `detect --subject A04T` with the A01T model | **33.2%** | Reading a stranger: above the 25% chance level, not usable |
 
 The tools warn you when you ask for the third one.
 
 Cross-subject is worse than the single number suggests. Per class, trained on
 A01T and tested on A04T: `right` 86.6%, `left` 32.3%, `foot` 13.4%,
-`tongue` 0.0%. The model has not degraded evenly — it has collapsed toward
+`tongue` 0.0%. The model has not degraded evenly, it has collapsed toward
 `right` on an unfamiliar brain, which is a domain-shift problem rather than a
 weak-classifier one.
 
@@ -165,7 +165,7 @@ weak-classifier one.
 Measured, not guessed:
 
 1. **Per-user calibration beats every algorithmic fix.** Eight of a new user's own
-   trials — about one minute of recording — takes them from 33% to 56%. Twenty-four
+   trials (about one minute of recording) takes them from 33% to 56%. Twenty-four
    trials reaches 67%. Nothing tried on the zero-calibration case came close.
 2. **Do not pool subjects.** Adding another person's trials to a target user's own
    data *hurts* once the target has 24 trials or more (0.798 alone vs 0.692
@@ -178,7 +178,7 @@ Measured, not guessed:
 Things already tested and **not** worth your time: the frequency band (8–30 Hz is
 already optimal), the covariance estimator (OAS already best), and a soft-vote
 ensemble (0.672 vs 0.664 for triple the compute). Riemannian re-centring fixes
-the cross-subject *collapse* — `tongue` recall goes 0% → 26% — but moves overall
+the cross-subject *collapse* (`tongue` recall goes 0% → 26%) but moves overall
 accuracy only 33.2% → 35.5%.
 
 ---
@@ -205,7 +205,7 @@ classification/          the model layer
 
 tests/                   21 checks that run against the real recordings
 run_ui.sh                launcher that finds a Python with the dependencies
-requirements.txt         added — the root README referenced it but it did not exist
+requirements.txt         added, the root README referenced it but it did not exist
 ```
 
 Trained models (`models/*.joblib`) and benchmark output are build artifacts and
