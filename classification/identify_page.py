@@ -5,7 +5,7 @@ IDENTIFY_PAGE = r"""<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Identify — motor imagery</title>
+<title>Identify, motor imagery</title>
 <style>
   :root {
     --ground:#E9EDEF; --panel:#FFF; --ink:#131C21; --muted:#5A6A72; --faint:#8798A0;
@@ -87,14 +87,14 @@ IDENTIFY_PAGE = r"""<!doctype html>
 <body>
 <div class="wrap">
   <h1>Identify a signal</h1>
-  <p class="sub">Pick any EEG signal on the left. The model has never seen these — it was trained on a
+  <p class="sub">Pick any EEG signal on the left. The model has never seen these, it was trained on a
   separate part of the recording. <a href="/">Test bench</a> · <a href="/live">Live stream</a></p>
 
   <div class="layout">
     <div>
       <div class="pickhead">
         <select id="subject"></select>
-        <span class="tally" id="tally">—</span>
+        <span class="tally" id="tally">no runs yet</span>
       </div>
       <div class="chips" id="chips"></div>
       <div class="list" id="list"><div style="padding:16px" class="hint">loading…</div></div>
@@ -114,13 +114,13 @@ IDENTIFY_PAGE = r"""<!doctype html>
       <div class="verdict">
         <div class="card vbox">
           <div class="cap">Model identifies</div>
-          <div class="big" id="call">—</div>
+          <div class="big" id="call">waiting</div>
           <svg class="ring" id="ring" width="96" height="96" viewBox="0 0 96 96"></svg>
           <div class="meta" id="conf">confidence</div>
         </div>
         <div class="card vbox truth">
           <div class="cap">Really was</div>
-          <div class="big" id="truth">—</div>
+          <div class="big" id="truth">hidden</div>
           <div class="meta" id="verdictNote">pick a signal</div>
         </div>
       </div>
@@ -230,12 +230,12 @@ function showFrame(f, i) {
   drawRing(f.confidence, COLORS[f.label] || 'var(--accent)');
   el('conf').textContent = 'confidence, window ' + (i + 1);
   el('clockL').textContent = `${f.t.toFixed(2)} s into the signal`;
-  el('clockR').textContent = i === 0 ? 'first full window — the decision point'
+  el('clockR').textContent = i === 0 ? 'first full window, the decision point'
                                      : 'sliding past the imagery';
 }
 
 function updateTally() {
-  if (!results.size) { el('tally').textContent = '—'; return; }
+  if (!results.size) { el('tally').textContent = 'no runs yet'; return; }
   const hits = [...results.values()].filter(r => r.ok).length;
   el('tally').textContent = `${hits}/${results.size} identified (${Math.round(hits / results.size * 100)}%)`;
 }
@@ -249,7 +249,7 @@ async function identify(index) {
   el('list').querySelectorAll('.sig').forEach(n =>
     n.classList.toggle('on', parseInt(n.dataset.i, 10) === index));
 
-  el('truth').textContent = '—';
+  el('truth').textContent = 'hidden';
   el('verdictNote').textContent = 'identifying…';
   el('clockL').textContent = 'reading the signal…';
 
@@ -278,7 +278,7 @@ async function identify(index) {
     el('truth').style.color = COLORS[data.truth] || 'var(--ink)';
     el('verdictNote').innerHTML = ok
       ? '<span class="ok">the model got it right</span>'
-      : `<span class="miss">wrong — it said ${decision.label}</span>`;
+      : `<span class="miss">wrong, it said ${decision.label}</span>`;
 
     results.set(index, {call: decision.label, conf: decision.confidence, ok});
     renderList();
@@ -302,7 +302,7 @@ async function load() {
     results.clear();
     updateTally();
     renderList();
-    el('clockL').textContent = `${catalog.length} signals the model has never seen — pick one`;
+    el('clockL').textContent = `${catalog.length} signals the model has never seen, pick one`;
   } catch (err) {
     setError(err.message);
     el('list').innerHTML = '';

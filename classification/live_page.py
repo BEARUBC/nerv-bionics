@@ -5,7 +5,7 @@ LIVE_PAGE = r"""<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Live — motor imagery</title>
+<title>Live, motor imagery</title>
 <style>
   :root {
     --ground:#E9EDEF; --panel:#FFF; --ink:#131C21; --muted:#5A6A72; --faint:#8798A0;
@@ -114,7 +114,7 @@ LIVE_PAGE = r"""<!doctype html>
     <button class="primary" id="play">Start</button>
     <button id="next" disabled>Skip trial</button>
     <label class="chk"><input type="checkbox" id="peek"> show the answer straight away</label>
-    <span class="tally" id="tally">—</span>
+    <span class="tally" id="tally">no runs yet</span>
   </div>
 
   <div class="card scope">
@@ -135,13 +135,13 @@ LIVE_PAGE = r"""<!doctype html>
     <div>
       <div class="card verdict">
         <div class="cap">Model says</div>
-        <div class="big" id="call">—</div>
+        <div class="big" id="call">waiting</div>
         <div class="conf" id="conf">waiting for the first full window</div>
       </div>
 
       <div class="secret hidden" id="secret">
         <div class="cap">For your eyes only</div>
-        <div class="big" id="truth">—</div>
+        <div class="big" id="truth">hidden</div>
         <div class="note" id="truthNote">hidden until the trial ends</div>
       </div>
     </div>
@@ -228,7 +228,7 @@ function showFrame(frame, frameIndex) {
 
   el('clockL').textContent = `${frame.t.toFixed(2)} s into the trial`;
   el('clockR').textContent = frameIndex === 0
-    ? 'first full window — the model is at its most accurate here'
+    ? 'first full window, the model is at its most accurate here'
     : `window ${frameIndex + 1}, sliding past the imagery`;
 }
 
@@ -244,7 +244,7 @@ function revealTruth(truth, call) {
 
 function hideTruth() {
   el('secret').classList.add('hidden');
-  el('truth').textContent = '—';
+  el('truth').textContent = 'hidden';
   el('truthNote').textContent = peek.checked ? 'revealing…' : 'hidden until the trial ends';
 }
 
@@ -263,7 +263,7 @@ function renderLog() {
 }
 
 function updateTally() {
-  if (!log.length) { el('tally').textContent = '—'; return; }
+  if (!log.length) { el('tally').textContent = 'no runs yet'; return; }
   const hits = log.filter(r => r.ok).length;
   el('tally').textContent = `${hits}/${log.length} correct (${Math.round(hits / log.length * 100)}%) · chance 25%`;
 }

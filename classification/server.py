@@ -227,7 +227,7 @@ function refreshDuration() {
   const len = b - a;
   if (len < 1) {
     box.className = 'dur bad';
-    box.textContent = `${len.toFixed(2)} s window — too short, covariance needs at least 1 s`;
+    box.textContent = `${len.toFixed(2)} s window, too short, covariance needs at least 1 s`;
     runBtn.disabled = true;
   } else {
     box.className = 'dur';

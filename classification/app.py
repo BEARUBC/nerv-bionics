@@ -349,7 +349,7 @@ def build_panel(cache, subjects, initial):
     fig = plt.figure(figsize=(14, 8), facecolor=BACKGROUND)
     # Two fig.text calls rather than suptitle: suptitle centres on its y and its
     # descenders then run into the line below.
-    fig.text(0.03, 0.955, 'Motor imagery — test bench', fontsize=15, fontweight='bold',
+    fig.text(0.03, 0.955, 'Motor imagery test bench', fontsize=15, fontweight='bold',
              color=INK, va='center')
     fig.text(0.03, 0.918, 'pick a recording, a class and a time window, then press Run test',
              fontsize=10, color=MUTED, va='center')
@@ -460,7 +460,7 @@ def build_panel(cache, subjects, initial):
 
         if tmax - tmin < 1.0:
             set_status(['The window is shorter than 1 second.',
-                        'Covariance needs more samples than that — widen it and run again.'], BAD)
+                        'Covariance needs more samples than that, widen it and run again.'], BAD)
             fig.canvas.draw_idle()
             return
 

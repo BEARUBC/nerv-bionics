@@ -29,7 +29,7 @@ A comprehensive benchmark of classical and deep-learning pipelines for 4-class E
 
 ## Dataset
 
-**BCI Competition IV Dataset 2a** — 9 subjects performing four motor imagery (MI) tasks:
+**BCI Competition IV Dataset 2a**, 9 subjects performing four motor imagery (MI) tasks:
 
 | Class   | Imagined Movement |
 |---------|-------------------|
@@ -103,7 +103,7 @@ Soft-vote over LDA, SVM, and a **Random Forest** (100 trees), all trained on the
 
 ### 4. Riemannian MDM
 
-**Minimum Distance to Mean** — computes per-trial covariance matrices (OAS) and assigns each trial to the class whose Riemannian geometric mean covariance is closest under the affine-invariant metric.
+**Minimum Distance to Mean**, computes per-trial covariance matrices (OAS) and assigns each trial to the class whose Riemannian geometric mean covariance is closest under the affine-invariant metric.
 
 - No spatial filter selection required
 - Robust to electrode perturbations
@@ -132,7 +132,7 @@ Features are standardised (z-score) before multinomial Logistic Regression. Uses
 
 ### 8. EEGNet (Deep Learning)
 
-**EEGNet** (Lawhern et al., 2018) — compact CNN with depthwise and separable convolutions operating on raw (bandpass-filtered, z-score-normalised) EEG:
+**EEGNet** (Lawhern et al., 2018), compact CNN with depthwise and separable convolutions operating on raw (bandpass-filtered, z-score-normalised) EEG:
 
 ```
 Block 1: Temporal Conv (F1=8, kernel=64)
@@ -147,7 +147,7 @@ Classifier: Linear (F2 × T_out → 4)
 - ~2,300 trainable parameters
 - Trained with Adam (lr=1e-3, weight decay=1e-4)
 - Early stopping on validation loss (patience=40)
-- Evaluated under **LOSO** — a cross-subject protocol
+- Evaluated under **LOSO**, a cross-subject protocol
 
 ---
 
@@ -160,7 +160,7 @@ Classifier: Linear (F2 × T_out → 4)
 
 **Metrics reported**: Mean Accuracy ± std across subjects, Cohen's κ (chance = 0, perfect = 1).
 
-> LOSO results are not directly comparable to per-subject CV — LOSO is a harder cross-subject generalisation test.
+> LOSO results are not directly comparable to per-subject CV, LOSO is a harder cross-subject generalisation test.
 
 ---
 
@@ -187,9 +187,9 @@ Chance level: **0.25** (4 classes).
 
 The notebook (Section 8) produces:
 
-1. **Bar chart** — mean accuracy and Cohen's κ for all 8 methods with error bars
-2. **Per-patient heatmap** — accuracy per method × patient (RdYlGn colormap, 0.20–0.85)
-3. **Confusion matrices** — normalized 4×4 matrices for all models showing class-level confusion
+1. **Bar chart**, mean accuracy and Cohen's κ for all 8 methods with error bars
+2. **Per-patient heatmap**, accuracy per method × patient (RdYlGn colormap, 0.20–0.85)
+3. **Confusion matrices**, normalized 4×4 matrices for all models showing class-level confusion
 
 ---
 
@@ -237,10 +237,10 @@ xgboost>=3.3
 
 | Section | Content |
 |---------|---------|
-| 1 | EDA — data loading, class distribution, PSD, channel maps |
-| 2 | Preprocessing — bandpass, envelope, artifact overview |
+| 1 | EDA: data loading, class distribution, PSD, channel maps |
+| 2 | Preprocessing: bandpass, envelope, artifact overview |
 | 3 | CSP + LDA / SVM / Ensemble (per-subject 5-fold CV + LOSO baseline) |
-| 4 | EEGNet — LOSO training, final model, inference helper |
+| 4 | EEGNet: LOSO training, final model, inference helper |
 | 5 | Riemannian MDM and Tangent Space + LR |
 | 6 | Filter Bank CSP + Logistic Regression |
 | 7 | XGBoost on CSP features |
