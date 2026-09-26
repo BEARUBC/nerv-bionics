@@ -1,0 +1,4 @@
+# Trained detectors are build artifacts: regenerate them with
+#   python -m classification.train --subjects A01T
+*.joblib
+*.pt
