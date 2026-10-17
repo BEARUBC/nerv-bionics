@@ -394,17 +394,6 @@ class EEGNetClassifier(BaseEstimator, ClassifierMixin):
 
         return self._encoder.inverse_transform(self.predict_proba(X).argmax(axis=1))
 
-    def count_parameters(self):
-        """Count trainable parameters in the fitted network.
-
-        Returns
-        -------
-        int
-            Number of trainable parameters.
-        """
-
-        return sum(p.numel() for p in self.network_.parameters() if p.requires_grad)
-
     def save(self, path):
         """Save network weights and the normalisation statistics.
 

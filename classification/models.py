@@ -1,6 +1,6 @@
 """The three selected classifiers, plus the ones we measured and set aside.
 
-Selection came out of the 8-model benchmark in ``trydataset2a/main.ipynb`` and the
+Selection came out of an earlier 8-model notebook benchmark (commit c763fa8) and the
 re-run in ``benchmark.py`` on a corrected 0.5-3.5 s epoch window. What we keep:
 
 1. ``riemann_ts_lr``  - Riemannian tangent space + logistic regression. Best

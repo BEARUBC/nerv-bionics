@@ -5,8 +5,8 @@ the opposite view: one array of fixed-length epochs cut around each motor
 imagery cue. This module does that conversion straight from the BCI IV 2a
 ``.mat`` files that already live in ``acquisition/data/``.
 
-The epoch window is a parameter on purpose. The earlier benchmark in
-``trydataset2a/main.ipynb`` used a pre-cut 0.8 s window, which caps accuracy well
+The epoch window is a parameter on purpose. The earlier notebook benchmark
+(commit c763fa8) used a pre-cut 0.8 s window, which caps accuracy well
 below what the same models reach on a 0.5-3.5 s window, so being able to change
 it is the single most useful knob here.
 """

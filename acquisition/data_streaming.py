@@ -272,26 +272,6 @@ def trim_desired_data(desired_trials, csv):
     # save it so we can replay it later
     np.savetxt('data/stream.csv', trimmed_data, delimiter=",")
 
-# prints all 22 EEG channels as a table
-def show_data(data):
-    """Print the first 22 EEG channels as a pandas table.
-
-    Parameters
-    ----------
-    data : numpy.ndarray
-        BrainFlow data matrix where each row is a channel.
-
-    Returns
-    -------
-    None
-        The channel table is printed to the console.
-    """
-
-    df = pd.DataFrame()
-    for i in range(22):
-        df["node ", (i + 1)] = data[i]
-    print(df)
-
 # shows a menu of all events so user can pick which trials to look at
 def table_of_contents():
     """Print the parsed event table with labels and sample positions.

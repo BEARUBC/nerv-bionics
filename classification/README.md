@@ -11,8 +11,8 @@ records what was measured, which three won, and why.
 
 ## 1. What was compared
 
-The starting point was the eight-model benchmark in
-[`trydataset2a/main.ipynb`](../trydataset2a/main.ipynb): CSP+LDA, CSP+SVM, a
+The starting point was an eight-model notebook benchmark (removed from the tree;
+see commit `c763fa8`): CSP+LDA, CSP+SVM, a
 voting ensemble, Riemannian MDM, Riemannian tangent space + LR, FBCSP+LR, XGBoost
 on CSP features, and EEGNet.
 
@@ -715,7 +715,7 @@ pooling is consistently worse. Naive concatenation is not transfer learning.
 1. **Add the other seven BCI IV 2a subjects.** Every cross-subject number here
    rests on training with exactly one person. This also gates a fair re-test of
    EEGNet, which is starved rather than beaten (section 4).
-2. **Finish `signal_analysis/ica.py`.** Still a skeleton. Eye-blink removal is
+2. **Add ICA artifact removal.** Not implemented yet. Eye-blink removal is
    typically worth a few points and would let the 100 µV rejection threshold be
    loosened, recovering the 15–26 trials per subject currently discarded.
 3. **Trial-level rejection by confidence during calibration.** Drop the trials the
