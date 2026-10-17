@@ -35,12 +35,12 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit
 
-from classification.app import CLASS_ORDER, OFFERED_MODELS, RecordingCache, run_test
+from classification.app import RecordingCache, run_test
 from classification.live import LiveSession
 from classification.live_page import LIVE_PAGE
 from classification.identify_page import IDENTIFY_PAGE
-from classification.data import available_subjects
-from classification.models import MODEL_REGISTRY
+from classification.data import CLASSES, available_subjects
+from classification.models import MODEL_REGISTRY, SELECTED_MODELS
 
 DEFAULT_PORT = 8000
 
@@ -400,8 +400,8 @@ def make_handler(cache, subjects):
 
     config = {
         'subjects': subjects,
-        'classes': list(CLASS_ORDER),
-        'models': [{'key': k, 'label': MODEL_REGISTRY[k]['label']} for k in OFFERED_MODELS],
+        'classes': list(CLASSES),
+        'models': [{'key': k, 'label': MODEL_REGISTRY[k]['label']} for k in SELECTED_MODELS],
     }
     serialised = json.dumps(config)
     page = PAGE.replace('__CONFIG__', serialised)
@@ -551,7 +551,7 @@ def make_handler(cache, subjects):
             if subject not in subjects:
                 self._fail(400, f'unknown recording {subject!r}')
                 return
-            if model not in OFFERED_MODELS:
+            if model not in SELECTED_MODELS:
                 self._fail(400, f'unknown model {model!r}')
                 return
             if tmax - tmin < 1.0:

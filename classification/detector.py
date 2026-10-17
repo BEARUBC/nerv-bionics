@@ -31,7 +31,7 @@ from pathlib import Path
 import joblib
 import numpy as np
 
-from classification.data import CLASSES, load_subjects
+from classification.data import load_subjects
 from classification.models import build_model
 from classification.preprocessing import DEFAULT_BAND, DEFAULT_REJECT_UV, prepare, prepare_trial
 

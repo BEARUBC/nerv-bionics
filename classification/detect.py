@@ -44,7 +44,6 @@ import numpy as np
 
 from classification.data import CLASSES, DEFAULT_DATA_DIR, load_mat_epochs
 from classification.detector import MotorImageryDetector
-from classification.preprocessing import prepare_trial
 from classification.realtime import OnlineDecoder
 
 # Bar drawn next to each detection so confidence is readable at a glance.

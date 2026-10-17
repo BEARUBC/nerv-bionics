@@ -28,16 +28,13 @@ import time
 import warnings
 
 import numpy as np
-import scipy.io
 from sklearn.model_selection import StratifiedKFold
 
-from classification.data import (CUE_CODES, DEFAULT_DATA_DIR, EOG_COLUMNS, N_EEG_CHANNELS,
-                                 REJECTED_TRIAL_CODE, TRIAL_START_CODE, available_subjects,
-                                 interpolate_nans)
-from classification.models import MODEL_REGISTRY, build_model
+from classification.data import (CLASSES, DEFAULT_DATA_DIR, available_subjects, cut_epochs,
+                                 load_recording)
+from classification.models import MODEL_REGISTRY, SELECTED_MODELS, build_model
 from classification.preprocessing import prepare
 
-CLASS_ORDER = ('left', 'right', 'foot', 'tongue')
 CLASS_COLORS = {
     'left': '#2E6E9E',
     'right': '#A85F18',
@@ -55,10 +52,6 @@ BAD = '#9E2B26'
 
 CHANCE = 0.25
 N_FOLDS = 5
-
-# Models worth offering in the panel: the three selected ones.
-OFFERED_MODELS = ('riemann_ts_lr', 'riemann_mdm', 'csp_lda')
-
 
 class RecordingCache:
     """Hold each recording's continuous signal so window changes stay fast.
@@ -88,35 +81,7 @@ class RecordingCache:
         if subject in self._store:
             return self._store[subject]
 
-        mat = scipy.io.loadmat(str(DEFAULT_DATA_DIR / f'{subject}.mat'))
-        fs = float(np.asarray(mat['SampleRate']).ravel()[0])
-        signal = interpolate_nans(np.delete(np.asarray(mat['s'], dtype=float), EOG_COLUMNS, axis=1))
-
-        event_type = np.asarray(mat['EVENTTYP']).ravel().astype(int)
-        event_pos = np.asarray(mat['EVENTPOS']).ravel().astype(int)
-
-        rejected = set()
-        for i, code in enumerate(event_type):
-            if code != REJECTED_TRIAL_CODE:
-                continue
-            for j in range(i, -1, -1):
-                if event_type[j] == TRIAL_START_CODE:
-                    rejected.add(int(event_pos[j]))
-                    break
-
-        cues = []
-        for i, code in enumerate(event_type):
-            if code not in CUE_CODES:
-                continue
-            start = None
-            for j in range(i, -1, -1):
-                if event_type[j] == TRIAL_START_CODE:
-                    start = int(event_pos[j])
-                    break
-            if start in rejected:
-                continue
-            cues.append((int(event_pos[i]), CUE_CODES[code]))
-
+        signal, cues, fs, _ = load_recording(DEFAULT_DATA_DIR / f'{subject}.mat')
         self._store[subject] = (signal, cues, fs)
         return self._store[subject]
 
@@ -137,18 +102,8 @@ class RecordingCache:
         """
 
         signal, cues, fs = self.get(subject)
-        start_offset = int(round(tmin * fs))
-        n_samples = int(round(tmax * fs)) - start_offset
-
-        X, y = [], []
-        for position, label in cues:
-            start = position + start_offset
-            if start < 0 or start + n_samples > signal.shape[0]:
-                continue
-            X.append(signal[start:start + n_samples, :N_EEG_CHANNELS].T)
-            y.append(label)
-
-        return np.stack(X), np.asarray(y), fs
+        X, y = cut_epochs(signal, cues, fs, tmin, tmax)
+        return X, y, fs
 
 
 def run_test(cache, subject, model_name, tmin, tmax, class_filter=None, folds=N_FOLDS):
@@ -203,13 +158,13 @@ def run_test(cache, subject, model_name, tmin, tmax, class_filter=None, folds=N_
         scored_true, scored_pred = true_all, pred_all
 
     per_class = {}
-    for name in CLASS_ORDER:
+    for name in CLASSES:
         mask = true_all == name
         per_class[name] = float(np.mean(pred_all[mask] == name)) if mask.any() else float('nan')
 
-    matrix = np.zeros((len(CLASS_ORDER), len(CLASS_ORDER)), dtype=int)
+    matrix = np.zeros((len(CLASSES), len(CLASSES)), dtype=int)
     for t, p in zip(true_all, pred_all):
-        matrix[CLASS_ORDER.index(t), CLASS_ORDER.index(p)] += 1
+        matrix[CLASSES.index(t), CLASSES.index(p)] += 1
 
     return {
         'accuracy': float(np.mean(scored_pred == scored_true)) if len(scored_true) else float('nan'),
@@ -274,10 +229,10 @@ def render(axes, result):
     ax = axes['bars']
     ax.clear()
 
-    values = [result['per_class'][c] for c in CLASS_ORDER]
-    positions = np.arange(len(CLASS_ORDER))
+    values = [result['per_class'][c] for c in CLASSES]
+    positions = np.arange(len(CLASSES))
 
-    for pos, name, value in zip(positions, CLASS_ORDER, values):
+    for pos, name, value in zip(positions, CLASSES, values):
         highlight = result['class_filter'] in (None, name)
         ax.barh(pos, value, height=0.6, color=CLASS_COLORS[name],
                 alpha=1.0 if highlight else 0.25)
@@ -285,10 +240,10 @@ def render(axes, result):
                 color=INK, family='monospace')
 
     ax.axvline(CHANCE, color=BAD, linestyle='--', linewidth=1)
-    ax.text(CHANCE + 0.01, len(CLASS_ORDER) - 0.42, 'chance', fontsize=8, color=BAD)
+    ax.text(CHANCE + 0.01, len(CLASSES) - 0.42, 'chance', fontsize=8, color=BAD)
 
     ax.set_yticks(positions)
-    ax.set_yticklabels(CLASS_ORDER, fontsize=10)
+    ax.set_yticklabels(CLASSES, fontsize=10)
     ax.set_xlim(0, 1.18)
     ax.set_xticks([0, 0.5, 1.0])
     ax.set_xticklabels(['0', '50%', '100%'], fontsize=8)
@@ -307,15 +262,15 @@ def render(axes, result):
     normalised = matrix / np.clip(matrix.sum(axis=1, keepdims=True), 1, None)
     ax.imshow(normalised, cmap='BuGn', vmin=0, vmax=1)
 
-    for i in range(len(CLASS_ORDER)):
-        for j in range(len(CLASS_ORDER)):
+    for i in range(len(CLASSES)):
+        for j in range(len(CLASSES)):
             ax.text(j, i, str(matrix[i, j]), ha='center', va='center', fontsize=9,
                     color=(PANEL if normalised[i, j] > 0.55 else INK))
 
-    ax.set_xticks(range(len(CLASS_ORDER)))
-    ax.set_yticks(range(len(CLASS_ORDER)))
-    ax.set_xticklabels(CLASS_ORDER, fontsize=8, rotation=30, ha='right')
-    ax.set_yticklabels(CLASS_ORDER, fontsize=8)
+    ax.set_xticks(range(len(CLASSES)))
+    ax.set_yticks(range(len(CLASSES)))
+    ax.set_xticklabels(CLASSES, fontsize=8, rotation=30, ha='right')
+    ax.set_yticklabels(CLASSES, fontsize=8)
     ax.set_xlabel('detected', fontsize=9, color=MUTED)
     ax.set_ylabel('actual', fontsize=9, color=MUTED)
     ax.set_title('what it confused with what', fontsize=10, color=INK, loc='left')
@@ -371,10 +326,10 @@ def build_panel(cache, subjects, initial):
     ax_run = fig.add_axes([0.03, 0.045, 0.17, 0.055])
 
     radio_subject = RadioButtons(ax_subject, subjects, active=subjects.index(initial['subject']))
-    radio_class = RadioButtons(ax_class, ('all classes',) + CLASS_ORDER, active=0)
-    model_labels = [MODEL_REGISTRY[m]['label'] for m in OFFERED_MODELS]
+    radio_class = RadioButtons(ax_class, ('all classes',) + CLASSES, active=0)
+    model_labels = [MODEL_REGISTRY[m]['label'] for m in SELECTED_MODELS]
     radio_model = RadioButtons(ax_model, model_labels,
-                               active=OFFERED_MODELS.index(initial['model']))
+                               active=SELECTED_MODELS.index(initial['model']))
 
     for radio in (radio_subject, radio_class, radio_model):
         for label in radio.labels:
@@ -466,7 +421,7 @@ def build_panel(cache, subjects, initial):
 
         chosen_class = radio_class.value_selected
         class_filter = None if chosen_class == 'all classes' else chosen_class
-        model_name = OFFERED_MODELS[model_labels.index(radio_model.value_selected)]
+        model_name = SELECTED_MODELS[model_labels.index(radio_model.value_selected)]
 
         set_status([f'Running {N_FOLDS}-fold cross-validation...', duration_note()], INK)
         fig.canvas.draw_idle()
@@ -517,7 +472,7 @@ def main(argv=None):
 
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--subject', default=None, help='Recording selected at startup.')
-    parser.add_argument('--model', default='riemann_ts_lr', choices=OFFERED_MODELS,
+    parser.add_argument('--model', default='riemann_ts_lr', choices=SELECTED_MODELS,
                         help='Model selected at startup.')
     parser.add_argument('--tmin', type=float, default=0.5, help='Window start in seconds.')
     parser.add_argument('--tmax', type=float, default=3.5, help='Window end in seconds.')

@@ -1,17 +1,5 @@
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import argparse
-import logging
-import PyQt6
-import pyqtgraph as pg
-
-import numpy as np
-import argparse
-from brainflow.board_shim import BoardShim, BrainFlowInputParams, LogLevels, BoardIds, BrainFlowPresets
+from brainflow.board_shim import BoardShim
 from brainflow.data_filter import DataFilter, FilterTypes, DetrendOperations
-from pyqtgraph.Qt import QtWidgets, QtCore
-import pandas as pd
 
 #taken from visualization.py
 class ICA:

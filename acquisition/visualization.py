@@ -1,17 +1,7 @@
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import argparse
-import logging
-import PyQt6
 import pyqtgraph as pg
-
-import numpy as np
-import argparse
-from brainflow.board_shim import BoardShim, BrainFlowInputParams, LogLevels, BoardIds, BrainFlowPresets
+from brainflow.board_shim import BoardShim
 from brainflow.data_filter import DataFilter, FilterTypes, DetrendOperations
 from pyqtgraph.Qt import QtWidgets, QtCore
-import pandas as pd
 
 class Graph:
     def __init__(self, board_shim):
@@ -35,8 +25,6 @@ class Graph:
         timer.timeout.connect(self.update)
         timer.start(self.update_speed_ms)
         self.app.exec()
-        self.board_id = board_shim.get_board_id()
- 
 
     def _init_timeseries(self):
         self.plots = list()
@@ -67,27 +55,3 @@ class Graph:
             self.curves[count].setData(data[channel].tolist())
 
         self.app.processEvents()
-
-def import_to_mne(file):
-
-    csv = pd.read_csv(file, header=None)
-    stream_duration = (len(csv) / frequency) + 1
-    print("Stream Duration: ", stream_duration)
-    print("Stream Length: ", len(csv))
-    
-
-    BoardShim.enable_dev_board_logger()
-
-    params = BrainFlowInputParams()
-    params.file = file
-    params.master_board = BoardIds.SYNTHETIC_BOARD
-    board = BoardShim(BoardIds.PLAYBACK_FILE_BOARD, params)
-    print("# Cols: ", BoardShim.get_num_rows(BoardIds.SYNTHETIC_BOARD.value))
-    print("EEG Channels: ", BoardShim.get_exg_channels(BoardIds.SYNTHETIC_BOARD.value))
-    print("EEG Names: ", BoardShim.get_eeg_names(BoardIds.SYNTHETIC_BOARD.value))
-    print("Timestamp Channel: ", BoardShim.get_timestamp_channel(BoardIds.SYNTHETIC_BOARD.value))
-    #print("Marker Channel: ", BoardShim.get_marker_channel(BoardIds.SYNTHETIC_BOARD.value))
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--streamer-params', type=str, help='streamer params', required=False, default='')
-    args = parser.parse_args()

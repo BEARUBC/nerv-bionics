@@ -19,10 +19,6 @@ DEFAULT_BAND = (8.0, 30.0)
 # artifact rather than cortical activity.
 DEFAULT_REJECT_UV = 100.0
 
-# Sub-bands for filter-bank style feature extraction, kept here so the band
-# definitions stay in one place.
-FILTER_BANK = ((4.0, 8.0), (8.0, 13.0), (13.0, 22.0), (22.0, 30.0))
-
 
 def baseline_correct(X, n_baseline_samples=None):
     """Remove each channel's own offset so trials are comparable.

@@ -1,6 +1,6 @@
 # Update: EEG model layer and live analysis
 
-**Branch:** `Phumi_Update` (from `farrel-update/eeg-pipeline`)
+**Branch:** `Phumi-Update` (from `farrel-update/eeg-pipeline`)
 
 This adds the missing piece between acquisition and control: a model layer that
 turns preprocessed EEG into one of four motor-imagery classes, and a browser UI
@@ -14,7 +14,7 @@ Everything needed is in the repository, the two BCI IV 2a recordings are already
 tracked, so there is nothing to download.
 
 ```bash
-git clone -b Phumi_Update https://github.com/BEARUBC/nerv-bionics.git
+git clone -b Phumi-Update https://github.com/BEARUBC/nerv-bionics.git
 cd nerv-bionics
 python -m pip install -r requirements.txt
 

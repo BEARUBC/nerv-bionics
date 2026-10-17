@@ -1,28 +1,16 @@
 # all the stuff we need
 import os
-import mne
-import matplotlib
-matplotlib.use('Agg')  # no popup plots
-import matplotlib.pyplot as plt
 import argparse
 import logging
-import PyQt6
-import pyqtgraph as pg
 
 import numpy as np
-import time
 import scipy.io
-import argparse
-from brainflow.board_shim import BoardShim, BrainFlowInputParams, LogLevels, BoardIds, BrainFlowPresets
-from brainflow.data_filter import DataFilter, FilterTypes, DetrendOperations
-from pyqtgraph.Qt import QtWidgets, QtCore
+from brainflow.board_shim import BoardShim, BrainFlowInputParams, BoardIds
 import pandas as pd
 
 import visualization  # our live graph module
 
 frequency = 250  # how many samples per second the EEG records
-
-eeg_csv_file = []
 
 parsed_event = []      # event names like "Cue onset left #1"
 parsed_pos = []        # where each event happens in the data
@@ -69,7 +57,6 @@ def import_to_mne(file):
     print("EEG Channels: ", BoardShim.get_exg_channels(BoardIds.SYNTHETIC_BOARD.value))
     print("EEG Names: ", BoardShim.get_eeg_names(BoardIds.SYNTHETIC_BOARD.value))
     print("Timestamp Channel: ", BoardShim.get_timestamp_channel(BoardIds.SYNTHETIC_BOARD.value))
-    #print("Marker Channel: ", BoardShim.get_marker_channel(BoardIds.SYNTHETIC_BOARD.value))
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--streamer-params', type=str, help='streamer params', required=False, default='')
@@ -88,23 +75,6 @@ def import_to_mne(file):
         if board.is_prepared():
             logging.info('Releasing session')
             board.release_session()
-
-    # board.prepare_session()
-
-    # board.start_stream()
-
-    # BoardShim.log_message(LogLevels.LEVEL_INFO.value, 'start sleeping in the main thread')
-    #time.sleep(stream_duration)
-    # data = board.get_board_data()
-    # #get_emg_channels (board_id)
-    # board.stop_stream()
-    # board.release_session()
-
-
-    # eeg_channels = BoardShim.get_eeg_channels(BoardIds.SYNTHETIC_BOARD.value)
-    # eeg_data = data[eeg_channels, :]
-
-    # return data
 
 # turns a .mat file into a CSV that brainflow understands
 def create_csv(file):
@@ -172,7 +142,7 @@ def get_events(file):
     """
 
     mat = scipy.io.loadmat(f'./data/{file}.mat')
-    parsed_event_pos = parse_event(mat['EVENTTYP'], mat['EVENTPOS'])
+    parse_event(mat['EVENTTYP'], mat['EVENTPOS'])
 
 
 # turns event codes (numbers) into readable names
@@ -219,7 +189,7 @@ def parse_event(event_type, event_pos):
                 event_index['Idling EEG (eyes closed)'] += 1
                 parsed_event.append(f"Idling EEG (eyes closed) #{event_index['Idling EEG (eyes closed)']}")
             case 768:  # trial starting
-                parsed_event.append(f"Start of a trial")
+                parsed_event.append("Start of a trial")
             case 769:  # imagine moving left hand
                 event_index['Cue onset left (class 1)'] += 1
                 parsed_event.append(f"Cue onset left (class 1) #{event_index['Cue onset left (class 1)']}")
@@ -242,7 +212,7 @@ def parse_event(event_type, event_pos):
                 event_index['Eye movements'] += 1
                 parsed_event.append(f"Eye movements #{event_index['Eye movements']}")
             case 32766:  # new run starting
-                parsed_event.append(f"Start of a new run")
+                parsed_event.append("Start of a new run")
             case _:  # no idea what this code is
                 event_index['Parse Error'] += 1
                 parsed_event.append(f"Parse Error #{event_index['Parse Error']}")
@@ -300,14 +270,7 @@ def trim_desired_data(desired_trials, csv):
             trimmed_data.append(csv.iloc[j + desired_trial_start_pos[i]])
 
     # save it so we can replay it later
-    np.savetxt(f'data/stream.csv', trimmed_data, delimiter=",")
-
-
-
-# wishlist:
-# clean up code
-# UI
-# make it so mlx script is run in python
+    np.savetxt('data/stream.csv', trimmed_data, delimiter=",")
 
 # prints all 22 EEG channels as a table
 def show_data(data):
@@ -395,9 +358,7 @@ def launch_board_ds2a(file, stream_duration):
     trim_desired_data(desired_trials, eeg_csv_file)
 
     # play it back with the live graph
-    import_to_mne(f'./data/stream.csv')
-    #data = import_to_mne(f'./data/stream.csv')
-    #show_data(data)
+    import_to_mne('./data/stream.csv')
 
 # kicks everything off with the A04T dataset
 def main():

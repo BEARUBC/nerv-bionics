@@ -79,6 +79,102 @@ def interpolate_nans(signal: np.ndarray) -> np.ndarray:
     return filled
 
 
+def load_recording(mat_path, drop_rejected=True):
+    """Read one ``.mat`` recording as a continuous signal plus its cue list.
+
+    Parameters
+    ----------
+    mat_path : str or pathlib.Path
+        Path to a BCI IV 2a recording such as ``acquisition/data/A01T.mat``.
+    drop_rejected : bool, optional
+        Skip trials the dataset flags with the artifact code 1023.
+
+    Returns
+    -------
+    signal : numpy.ndarray
+        EEG of shape (n_samples, 22), EOG removed and NaN gaps filled.
+    cues : list[tuple[int, str]]
+        ``(sample_position, label)`` for each usable cue, in recording order.
+    fs : float
+        Sampling rate in Hz.
+    n_rejected : int
+        Number of cues skipped because their trial was flagged.
+    """
+
+    mat = scipy.io.loadmat(str(mat_path))
+
+    fs = float(np.asarray(mat['SampleRate']).ravel()[0])
+    signal = np.delete(np.asarray(mat['s'], dtype=float), EOG_COLUMNS, axis=1)
+    signal = interpolate_nans(signal)[:, :N_EEG_CHANNELS]
+
+    event_type = np.asarray(mat['EVENTTYP']).ravel().astype(int)
+    event_pos = np.asarray(mat['EVENTPOS']).ravel().astype(int)
+
+    def trial_start(i):
+        for j in range(i, -1, -1):
+            if event_type[j] == TRIAL_START_CODE:
+                return int(event_pos[j])
+        return None
+
+    # A rejected trial is flagged on the 768 marker that precedes its cue, so
+    # collect those start positions first and match cues back to them.
+    rejected_starts = set()
+    if drop_rejected:
+        rejected_starts = {trial_start(i) for i, code in enumerate(event_type)
+                           if code == REJECTED_TRIAL_CODE} - {None}
+
+    cues = []
+    n_rejected = 0
+    for i, code in enumerate(event_type):
+        if code not in CUE_CODES:
+            continue
+        if drop_rejected and trial_start(i) in rejected_starts:
+            n_rejected += 1
+            continue
+        cues.append((int(event_pos[i]), CUE_CODES[code]))
+
+    return signal, cues, fs, n_rejected
+
+
+def cut_epochs(signal, cues, fs, tmin, tmax):
+    """Cut one fixed window per cue out of a continuous signal.
+
+    Parameters
+    ----------
+    signal : numpy.ndarray
+        Continuous EEG of shape (n_samples, n_channels).
+    cues : list[tuple[int, str]]
+        ``(sample_position, label)`` pairs, as returned by :func:`load_recording`.
+    fs : float
+        Sampling rate in Hz.
+    tmin, tmax : float
+        Window bounds in seconds relative to cue onset.
+
+    Returns
+    -------
+    X : numpy.ndarray
+        Epochs of shape (n_trials, n_channels, n_samples). Cues whose window runs
+        off either end of the recording are skipped.
+    y : numpy.ndarray
+        Class labels as strings.
+    """
+
+    start_offset = int(round(tmin * fs))
+    n_samples = int(round(tmax * fs)) - start_offset
+
+    epochs, labels = [], []
+    for position, label in cues:
+        start = position + start_offset
+        if start < 0 or start + n_samples > signal.shape[0]:
+            continue
+        epochs.append(signal[start:start + n_samples].T)
+        labels.append(label)
+
+    if not epochs:
+        return np.empty((0, signal.shape[1], n_samples)), np.asarray(labels)
+    return np.stack(epochs), np.asarray(labels)
+
+
 def load_mat_epochs(mat_path, tmin=0.5, tmax=3.5, drop_rejected=True, verbose=True):
     """Cut labelled motor-imagery epochs out of one ``.mat`` recording.
 
@@ -107,66 +203,12 @@ def load_mat_epochs(mat_path, tmin=0.5, tmax=3.5, drop_rejected=True, verbose=Tr
     """
 
     mat_path = Path(mat_path)
-    mat = scipy.io.loadmat(str(mat_path))
+    signal, cues, fs, n_rejected = load_recording(mat_path, drop_rejected)
+    X, y = cut_epochs(signal, cues, fs, tmin, tmax)
+    n_truncated = len(cues) - len(y)
 
-    fs = float(np.asarray(mat['SampleRate']).ravel()[0])
-    signal = np.delete(np.asarray(mat['s'], dtype=float), EOG_COLUMNS, axis=1)
-    signal = interpolate_nans(signal)
-
-    event_type = np.asarray(mat['EVENTTYP']).ravel().astype(int)
-    event_pos = np.asarray(mat['EVENTPOS']).ravel().astype(int)
-
-    # A rejected trial is flagged on the 768 marker that precedes its cue, so
-    # collect those start positions first and match cues back to them.
-    rejected_starts = set()
-    if drop_rejected:
-        for i, code in enumerate(event_type):
-            if code != REJECTED_TRIAL_CODE:
-                continue
-            for j in range(i, -1, -1):
-                if event_type[j] == TRIAL_START_CODE:
-                    rejected_starts.add(int(event_pos[j]))
-                    break
-
-    start_offset = int(round(tmin * fs))
-    stop_offset = int(round(tmax * fs))
-    n_samples = stop_offset - start_offset
-
-    epochs = []
-    labels = []
-    n_rejected = 0
-    n_truncated = 0
-
-    for i, code in enumerate(event_type):
-        if code not in CUE_CODES:
-            continue
-
-        cue_pos = int(event_pos[i])
-
-        if drop_rejected:
-            preceding_start = None
-            for j in range(i, -1, -1):
-                if event_type[j] == TRIAL_START_CODE:
-                    preceding_start = int(event_pos[j])
-                    break
-            if preceding_start in rejected_starts:
-                n_rejected += 1
-                continue
-
-        start = cue_pos + start_offset
-        stop = start + n_samples
-        if start < 0 or stop > signal.shape[0]:
-            n_truncated += 1
-            continue
-
-        epochs.append(signal[start:stop, :N_EEG_CHANNELS].T)
-        labels.append(CUE_CODES[code])
-
-    if not epochs:
+    if not len(y):
         raise ValueError(f'No usable epochs found in {mat_path}')
-
-    X = np.stack(epochs)
-    y = np.asarray(labels)
 
     if verbose:
         print(
