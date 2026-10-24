@@ -50,9 +50,27 @@ against a fixed budget rather than against each other, because what matters is
 whether a model fits the device's timing budget, not whether it beat a rival by a
 microsecond.
 
-## 3. The three selected models
+## 3. The four selected models
 
-### Rank 1: Riemannian tangent space + logistic regression (`riemann_ts_lr`)
+### Rank 1: Riemannian ensemble (`riemann_ensemble`)
+
+A soft vote: 70 % of the vote from rank 2 below, 30 % from a **filter-bank
+tangent space**. The filter bank splits 8–30 Hz into five sub-bands (8–12, 12–16,
+16–20, 20–24, 24–30 Hz), builds a tangent-space vector per band and fits one
+logistic regression on all of them. That lets the classifier weigh mu and beta
+separately, which plain TS + LR cannot, because it sees one covariance over the
+whole band.
+
+- **+3.4 accuracy points** over rank 2 at its old 0.5–3.5 s window, averaged over
+  20 random 50/25/25 splits, better on 14 of the 20. Section 14 has the numbers.
+- On its own the filter bank swings a lot between splits (1265 features from
+  ~130 trials). Giving it only 30 % of the vote keeps most of its gain and loses
+  most of the swing.
+- Takes the same preprocessed input as every other model, so the detector, live
+  view and online decoder needed no changes.
+- Defaults to a **0.5–4.5 s** window, one second longer than before.
+
+### Rank 2: Riemannian tangent space + logistic regression (`riemann_ts_lr`)
 
 Each trial becomes a 22×22 covariance matrix. Those live on a curved manifold of
 symmetric positive-definite matrices, so the pipeline projects them into the
@@ -68,7 +86,7 @@ manifold, and then fits multinomial logistic regression.
 - No hyperparameters worth tuning, which matters when every user needs their own
   calibration.
 
-### Rank 2: Riemannian MDM (`riemann_mdm`)
+### Rank 3: Riemannian MDM (`riemann_mdm`)
 
 Minimum distance to mean: compute one geometric mean covariance per class, then
 assign each trial to the nearest class mean under the affine-invariant metric.
@@ -83,13 +101,13 @@ assign each trial to the nearest class mean under the affine-invariant metric.
   no extra code and they can run side by side as a cross-check.
 - Gives up five points of within-subject accuracy for that.
 
-### Rank 3: CSP + LDA (`csp_lda`)
+### Rank 4: CSP + LDA (`csp_lda`)
 
 Common Spatial Patterns finds a small set of electrode mixes that maximally
 separate the classes, and LDA classifies their log-variances. This is the
 reference pipeline in the BCI literature.
 
-- Lands **within two points of rank 1** on within-subject accuracy, which is worth
+- Lands **within two points of rank 2** on within-subject accuracy, which is worth
   knowing before adopting anything more complicated.
 - **Fastest inference** of all five (0.08 ms).
 - Costs roughly **6× the calibration time** of either Riemannian model, and
@@ -304,14 +322,22 @@ talks to it over plain JSON.
 | Control | What it changes |
 |---|---|
 | **Recording** | Which subject's `.mat` to test |
-| **Type of data** | All four classes, or just `left` / `right` / `foot` / `tongue` |
-| **Model** | Riemannian TS + LR, Riemannian MDM, or CSP + LDA |
-| **start / end after cue** | The window, dragged in quarter-second steps |
+| **Model** | The four selected models; ★ marks the recommended one |
+| **Time window after cue** | Start and end, dragged in quarter-second steps, drawn on a 0–6 s timeline |
+| **How to test** | **50 / 25 / 25** hold-out (default) or **5-fold CV** |
+| **Average over 20 random splits** | Hold-out only: repeats the split 20 times and plots every result, about a minute |
+| **Focus class** | Highlights one class in the per-class table |
 
-Pressing Run cuts fresh epochs at your window, cleans them, and runs a real
-5-fold cross-validation, so the accuracy is measured on trials the model did not
-train on. The first run parses the recording and takes a few seconds; after that
-each run is about a second because the signal is cached.
+The default, **50 / 25 / 25**, trains on half the trials, reports accuracy on a
+quarter it uses for checking, and gives the headline scores on the last quarter,
+which played no part in training or in choosing the model
+(`classification/holdout.py`). **5-fold CV** trains on 80 % and tests on 20 %
+five times, so every trial is tested once.
+
+Every result shows **accuracy, precision, recall and F1** (macro-averaged over the
+four classes), Cohen's κ, precision and recall per class, and the confusion
+matrix. The first run parses the recording and takes a few seconds; after that a
+single run takes about one to three seconds because the signal is cached.
 
 The window readout turns red and disables Run below 1 second, because covariance
 estimation needs more samples than that.
@@ -324,6 +350,8 @@ bookmarkable. `run=1` presses the button on load:
 ```
 http://127.0.0.1:8000/?subject=A04T&tmin=1.0&tmax=4.0&class=foot&run=1
 ```
+
+Also accepted: `model=riemann_ts_lr`, `test=cv` and `repeat=1`.
 
 ### Which Python
 
@@ -572,7 +600,7 @@ better classifier.
 python -m pytest tests/ -v
 ```
 
-21 tests, about 7 seconds. They train a real model on a real recording rather than
+25 tests, about 18 seconds. They train a real model on a real recording rather than
 mocking it, because the failure worth catching is "the chain from recording to
 label stopped working", not "does this function return a float". They skip rather
 than fail if no `.mat` files are present.
@@ -587,7 +615,9 @@ What they cover:
 | save/load predicts identically | A persistence bug that quietly degrades a shipped model |
 | wrong window length / channel count raises | The worst failure mode: confident answers on malformed input |
 | confidence floor makes it decline | The safety gate actually gating |
-| all three selected models still train | A dependency upgrade breaking one of them |
+| all four selected models still train | A dependency upgrade breaking one of them |
+| 50/25/25 split is disjoint, balanced and repeatable | Test trials leaking into training, or a class going missing from a part |
+| precision and recall match hand counts | A metric wired to the wrong axis of the confusion matrix |
 | online decoder matches offline | Offline/online preprocessing mismatch, the classic reason a decoder cross-validates well and fails live |
 | live view streams a held-out split | The live view quietly starting to show trials the model trained on |
 | no frame carries the true label | The answer leaking onto the model's path |
@@ -618,7 +648,9 @@ do not need it.
 |---|---|
 | `data.py` | Cuts labelled epochs from the raw `.mat` recordings; interpolates dropped samples; honours the dataset's own artifact flags |
 | `preprocessing.py` | Baseline correction, 8–30 Hz bandpass, peak-to-peak artifact mask. One chain, shared by training and inference |
-| `models.py` | The three selected models plus the CSP baselines, behind `build_model(name)` |
+| `models.py` | The four selected models plus the CSP baselines, behind `build_model(name)` |
+| `ensemble.py` | Filter-bank tangent space and the soft-vote ensemble behind `riemann_ensemble` |
+| `holdout.py` | 50/25/25 split, accuracy/precision/recall/F1, and the repeated-split comparison CLI |
 | `eegnet.py` | EEGNet as a scikit-learn estimator, so it drops into the same benchmark and decoder |
 | `benchmark.py` | Measures all six axes, prints the scorecard, writes `acquisition/data/model_scorecard.csv` |
 | `realtime.py` | Rolling-buffer online decoder, plus `simulate()` to check online matches offline |
@@ -629,10 +661,12 @@ do not need it.
 | `app.py` | CLI: the matplotlib test bench: choose recording, class, window and model, press Run |
 | `server.py` | CLI: the test bench served to your browser, plus the live view, with a run-history table |
 | `live.py` | The live session: trains on one split, streams the other, keeps the label off the model's path |
+| `bench_page.py` | The test bench's HTML |
 | `live_page.py` | The live stream's HTML, kept out of `server.py` so both stay readable |
 | `identify_page.py` | The identify view's HTML: the signal picker and confidence ring |
 | `../tests/test_detector.py` | End-to-end checks over the real recordings |
 | `../tests/test_live.py` | Checks the live view's promise that the label never reaches the model |
+| `../tests/test_holdout.py` | Checks the 50/25/25 split and the metrics |
 
 ## 14. How to improve accuracy
 
@@ -640,6 +674,25 @@ Everything below was measured on the two recordings in this repository, not
 guessed. Ordered by what it actually returned.
 
 ### Already applied
+
+**Filter-bank ensemble and a 4.5 s window, worth +3.4 points.** Measured with the
+stricter protocol in `holdout.py`: each recording split 50 / 25 / 25, candidates
+compared on the 25 % check set, then scored on the final 25 %. One split has only
+~66 test trials, so one trial moves accuracy by 1.5 points. The comparison
+below therefore repeats the split 20 times:
+
+| Model | Window | A01T | A04T | Mean | Better than current |
+|---|---|---|---|---|---|
+| TS + LR (previous default) | 0.5–3.5 s | 0.780 | 0.541 | 0.661 | – |
+| TS + LR | 0.5–4.5 s | 0.779 | 0.570 | 0.674 | 11 of 20 |
+| **Ensemble** | **0.5–4.5 s** | **0.815** | **0.573** | **0.694** | **14 of 20** |
+| Riemannian MDM | 0.5–3.5 s | 0.729 | 0.477 | 0.603 | 0 of 20 |
+| CSP + LDA | 0.5–3.5 s | 0.772 | 0.486 | 0.629 | 4 of 20 |
+
+A caution from the same experiment: on the single fixed split (seed 42), a variant
+that looked best on the check set (0.727 vs 0.644) only tied on the test set. A
+single 50/25/25 split cannot tell apart models a few points apart; the 20-split
+average can. Reproduce with `python -m classification.holdout`.
 
 **Stronger regularisation, worth +2.7 points overall, +6 on the hard subject.**
 The tangent space of a 22×22 covariance has 253 dimensions, and a subject gives a
@@ -707,7 +760,7 @@ pooling is consistently worse. Naive concatenation is not transfer learning.
 |---|---|
 | Frequency band | 8–30 Hz already optimal. 4–40, 8–35, 6–32, 4–30, 8–26 and 1–40 all scored lower. Do not spend time here. |
 | Covariance estimator | OAS (0.664) beat Ledoit-Wolf (0.657) and the plain sample covariance (0.651). Already the default. |
-| Soft-vote ensemble of all three models | 0.672 vs 0.664 for TS+LR alone: inside the noise, for triple the compute. |
+| Soft-vote ensemble of TS + LR, MDM and CSP + LDA | 0.672 vs 0.664 for TS+LR alone: inside the noise, for triple the compute. The ensemble that did help (rank 1) pairs TS + LR with a filter bank instead, because the filter bank adds information the other two lack. |
 | Riemannian re-centring | Fixes the *collapse*: cross-subject `tongue` recall goes 0.00 → 0.26 and predictions spread across all four classes, but overall accuracy only moves 0.332 → 0.355. Worth it only in the zero-calibration case, and even then calibration beats it. |
 
 ### Still untested, in order of likely payoff

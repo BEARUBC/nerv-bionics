@@ -1,18 +1,21 @@
-"""The three selected classifiers, plus the ones we measured and set aside.
+"""The four selected classifiers, plus the ones we measured and set aside.
 
-Selection came out of an earlier 8-model notebook benchmark (commit c763fa8) and the
-re-run in ``benchmark.py`` on a corrected 0.5-3.5 s epoch window. What we keep:
+Selection came out of an earlier 8-model notebook benchmark (commit c763fa8), the
+re-run in ``benchmark.py`` on a corrected 0.5-3.5 s epoch window, and the 50/25/25
+hold-out comparison in ``holdout.py``. What we keep:
 
-1. ``riemann_ts_lr``  - Riemannian tangent space + logistic regression. Best
-   accuracy and best kappa of every pipeline tested.
-2. ``riemann_mdm``    - minimum distance to Riemannian mean. Cheapest to fit,
+1. ``riemann_ensemble`` - soft vote of model 2 and a filter-bank tangent space.
+   +3.4 accuracy points over model 2 averaged over 20 hold-out splits.
+2. ``riemann_ts_lr``  - Riemannian tangent space + logistic regression. Best
+   single pipeline, and the stable half of model 1.
+3. ``riemann_mdm``    - minimum distance to Riemannian mean. Cheapest to fit,
    best cross-subject accuracy, and it shares its covariance front end with
-   model 1.
-3. ``csp_lda``        - the BCI-literature reference pipeline. Third on the
-   composite score, and the number reviewers will expect to see.
+   model 2.
+4. ``csp_lda``        - the BCI-literature reference pipeline, and the number
+   reviewers will expect to see.
 
 ``eegnet`` stays available but is not selected. On the two recordings in this
-repository it came last: 0.543 accuracy against 0.664 for model 1, and 117 s to
+repository it came last: 0.543 accuracy against 0.664 for TS + LR, and 117 s to
 calibrate against 0.21 s. Read that as a data-volume result rather than a verdict
 on the architecture - a CNN fitted to roughly 214 trials per fold is starved.
 Re-run the benchmark once the other seven BCI IV 2a subjects are in place before
@@ -54,7 +57,7 @@ RANDOM_STATE = 42
 
 
 def build_riemann_ts_lr():
-    """Rank 1: covariance -> tangent space -> multinomial logistic regression.
+    """Rank 2: covariance -> tangent space -> multinomial logistic regression.
 
     Projecting each trial's 22x22 covariance into the tangent space at the
     geometric mean linearises the SPD manifold, so a linear classifier gets the
@@ -75,7 +78,7 @@ def build_riemann_ts_lr():
 
 
 def build_riemann_mdm():
-    """Rank 2: nearest Riemannian class mean, no trained decision boundary.
+    """Rank 3: nearest Riemannian class mean, no trained decision boundary.
 
     Fitting is just one geometric mean per class, which makes this the cheapest
     model to calibrate on a new user and the easiest to update incrementally.
@@ -93,10 +96,10 @@ def build_riemann_mdm():
 
 
 def build_csp_lda():
-    """Rank 3: the standard CSP + LDA pipeline from the BCI literature.
+    """Rank 4: the standard CSP + LDA pipeline from the BCI literature.
 
     Kept both as the reference point every BCI paper reports and as a genuine
-    third choice: it scores within two points of model 1, at the cost of a
+    fourth choice: it scores within two points of model 2, at the cost of a
     calibration step roughly six times slower and much weaker transfer to a
     subject it was not trained on.
 
@@ -111,6 +114,28 @@ def build_csp_lda():
     return Pipeline([
         ('csp', CSP(n_components=N_CSP_COMPONENTS, reg=COV_ESTIMATOR, log=True, norm_trace=False)),
         ('lda', LinearDiscriminantAnalysis()),
+    ])
+
+
+def build_riemann_ensemble():
+    """Rank 1: 70 % plain TS + LR, 30 % filter-bank tangent space, soft vote.
+
+    The filter bank lets the classifier weigh mu and beta separately; the plain
+    model keeps the vote stable when ~130 training trials are too few for the
+    filter bank's 1265 features. Better on 14 of 20 random 50/25/25 splits, see
+    :mod:`classification.ensemble`.
+
+    Returns
+    -------
+    classification.ensemble.SoftVoteEnsemble
+        Unfitted estimator taking epochs of shape (n_trials, n_channels, n_samples).
+    """
+
+    from classification.ensemble import FilterBankTangentSpace, SoftVoteEnsemble
+
+    return SoftVoteEnsemble([
+        (build_riemann_ts_lr(), 0.7),
+        (FilterBankTangentSpace(), 0.3),
     ])
 
 
@@ -153,22 +178,28 @@ def build_eegnet(**kwargs):
 
 # Selected models first, baselines after. `rank` is None for baselines.
 MODEL_REGISTRY = {
+    'riemann_ensemble': {
+        'label': 'Riemannian ensemble',
+        'builder': build_riemann_ensemble,
+        'rank': 1,
+        'needs_torch': False,
+    },
     'riemann_ts_lr': {
         'label': 'Riemannian TS + LR',
         'builder': build_riemann_ts_lr,
-        'rank': 1,
+        'rank': 2,
         'needs_torch': False,
     },
     'riemann_mdm': {
         'label': 'Riemannian MDM',
         'builder': build_riemann_mdm,
-        'rank': 2,
+        'rank': 3,
         'needs_torch': False,
     },
     'csp_lda': {
         'label': 'CSP + LDA',
         'builder': build_csp_lda,
-        'rank': 3,
+        'rank': 4,
         'needs_torch': False,
     },
     'csp_svm': {

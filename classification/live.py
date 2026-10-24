@@ -22,7 +22,7 @@ _require('classification.live')
 import numpy as np
 
 from classification.data import CLASSES, load_mat_epochs, DEFAULT_DATA_DIR
-from classification.detector import MotorImageryDetector
+from classification.detector import DEFAULT_MODEL, MotorImageryDetector
 from classification.preprocessing import prepare
 from classification.realtime import OnlineDecoder
 
@@ -62,7 +62,7 @@ class LiveSession:
         Seed for the train/stream split.
     """
 
-    def __init__(self, subject, model='riemann_ts_lr', step_s=0.5, smoothing=3, seed=42):
+    def __init__(self, subject, model=DEFAULT_MODEL, step_s=0.5, smoothing=3, seed=42):
         self.subject = subject
         self.model_name = model
         self.step_s = float(step_s)

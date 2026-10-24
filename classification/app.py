@@ -32,6 +32,7 @@ from sklearn.model_selection import StratifiedKFold
 
 from classification.data import (CLASSES, DEFAULT_DATA_DIR, available_subjects, cut_epochs,
                                  load_recording)
+from classification.holdout import summarise
 from classification.models import MODEL_REGISTRY, SELECTED_MODELS, build_model
 from classification.preprocessing import prepare
 
@@ -128,7 +129,9 @@ def run_test(cache, subject, model_name, tmin, tmax, class_filter=None, folds=N_
     Returns
     -------
     dict
-        Accuracy, per-class recall, confusion matrix, counts and timing.
+        Accuracy, per-class recall, confusion matrix, counts and timing, plus
+        ``metrics``: precision, recall and F1 over every scored fold, from
+        :func:`classification.holdout.summarise`.
     """
 
     X, y, fs = cache.epochs(subject, tmin, tmax)
@@ -170,6 +173,7 @@ def run_test(cache, subject, model_name, tmin, tmax, class_filter=None, folds=N_
         'accuracy': float(np.mean(scored_pred == scored_true)) if len(scored_true) else float('nan'),
         'per_class': per_class,
         'matrix': matrix,
+        'metrics': summarise(true_all, pred_all),
         'n_scored': int(len(scored_true)),
         'n_total': int(len(true_all)),
         'n_dropped': int((~keep).sum()),

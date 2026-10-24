@@ -36,7 +36,7 @@ from classification.models import build_model
 from classification.preprocessing import DEFAULT_BAND, DEFAULT_REJECT_UV, prepare, prepare_trial
 
 # The winner of the benchmark. Change this and you change what `fit` trains.
-DEFAULT_MODEL = 'riemann_ts_lr'
+DEFAULT_MODEL = 'riemann_ensemble'
 
 DEFAULT_MODEL_DIR = Path(__file__).resolve().parent.parent / 'models'
 
@@ -90,7 +90,7 @@ class MotorImageryDetector:
         0 means always answer.
     """
 
-    def __init__(self, model=DEFAULT_MODEL, fs=250.0, tmin=0.5, tmax=3.5,
+    def __init__(self, model=DEFAULT_MODEL, fs=250.0, tmin=0.5, tmax=4.5,
                  band=DEFAULT_BAND, min_confidence=0.0):
         self.model_name = model
         self.fs = float(fs)

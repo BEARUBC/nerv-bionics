@@ -42,13 +42,19 @@ The formal interface contract is documented in [acquisition/PIPELINE_SPEC.md](ac
 
 The model layer lives in [classification/](classification/). It cuts labelled epochs
 from the raw `.mat` recordings, applies one shared preprocessing chain, and exposes
-the three models selected after benchmarking eight candidates:
+the four models selected after benchmarking. Accuracy is on held-out test trials,
+averaged over 20 random 50 / 25 / 25 train / check / test splits of both recordings:
 
-| Rank | Model | Registry key | Accuracy | Calibrate |
-|---|---|---|---|---|
-| 1 | Riemannian tangent space + logistic regression | `riemann_ts_lr` | 0.691 | 0.19 s |
-| 2 | Riemannian MDM | `riemann_mdm` | 0.614 | 0.18 s |
-| 3 | CSP + LDA | `csp_lda` | 0.646 | 1.05 s |
+| Rank | Model | Registry key | Accuracy |
+|---|---|---|---|
+| 1 | Riemannian ensemble (TS + LR with a filter bank), 0.5–4.5 s | `riemann_ensemble` | 0.694 |
+| 2 | Riemannian tangent space + logistic regression | `riemann_ts_lr` | 0.661 |
+| 3 | Riemannian MDM | `riemann_mdm` | 0.603 |
+| 4 | CSP + LDA | `csp_lda` | 0.629 |
+
+Ranks 2–4 are at the 0.5–3.5 s window. The ranking follows `models.py`, where MDM
+sits above CSP + LDA because it calibrates faster and transfers better across
+subjects.
 
 Chance is 0.250 across four classes. CSP+SVM and EEGNet stay available in the
 registry but were not selected, EEGNet came last on this dataset's two subjects,
@@ -72,7 +78,8 @@ python -m classification.train  --subjects A01T --tune-window                # t
 python -m classification.detect --model models/a01t.joblib --subject A04T    # run detection
 python -m classification.ui     --model models/a01t.joblib --subject A01T --only tongue
 python -m classification.benchmark                                           # re-score models
-python -m pytest tests/ -v                                                   # 21 checks
+python -m classification.holdout                                             # 50/25/25 accuracy + precision
+python -m pytest tests/ -v                                                   # 25 checks
 ```
 
 The selection rationale, the measured scores on every axis, and the real-time usage
