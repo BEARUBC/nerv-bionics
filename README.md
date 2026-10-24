@@ -84,3 +84,12 @@ python -m pytest tests/ -v                                                   # 2
 
 The selection rationale, the measured scores on every axis, and the real-time usage
 pattern are documented in [classification/README.md](classification/README.md).
+
+## Key EEG nodes per movement
+
+| Movement | Key nodes |
+|---|---|
+| Right hand | CP3, FC3, C1 (left side) |
+| Left hand | CP4, C2 (right side) |
+| Feet | CP3 + CP4 together |
+| Tongue | FC3, CP3, Cz |
