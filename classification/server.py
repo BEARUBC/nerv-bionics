@@ -42,7 +42,7 @@ from classification.holdout import holdout, repeated_holdout
 from classification.live import LiveSession
 from classification.live_page import LIVE_PAGE
 from classification.identify_page import IDENTIFY_PAGE
-from classification.data import CLASSES, available_subjects
+from classification.data import CHANNEL_NAMES, CLASSES, available_subjects
 from classification.models import MODEL_REGISTRY, SELECTED_MODELS
 
 DEFAULT_PORT = 8000
@@ -76,6 +76,7 @@ def make_handler(cache, subjects):
     config = {
         'subjects': subjects,
         'classes': list(CLASSES),
+        'channel_names': list(CHANNEL_NAMES),
         'models': [{'key': k, 'label': MODEL_REGISTRY[k]['label']} for k in SELECTED_MODELS],
     }
     serialised = json.dumps(config)

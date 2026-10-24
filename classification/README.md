@@ -306,15 +306,39 @@ while streaming:
             send_command(decision.label, decision.confidence)
 ```
 
-## 6. The test bench in your browser
+## 6. The monitor in your browser
 
 ```bash
 ./run_ui.sh
 ```
 
-It opens <http://127.0.0.1:8000> in your browser. Real form controls, a Run
-button, and a table of every run so you can compare settings. Ctrl+C in the
-terminal stops it.
+It opens <http://127.0.0.1:8000> in your browser. Ctrl+C in the terminal stops it.
+
+The three screens look and behave like a clinical EEG monitor, so they read the
+way bedside equipment does:
+
+| Screen | Address | What it is |
+|---|---|---|
+| **Monitor** | `/live` | 22-channel EEG on a time grid, the detector's call and confidence as large readouts, a probability trend and an event log |
+| **Identify** | `/identify` | The same monitor, with a queue of held-out trials to pick from |
+| **Review** | `/` | Run a test and read accuracy, precision, recall, F1 and κ (this section) |
+
+Shared conventions, defined once in `monitor_theme.py`:
+
+- **Status bar** across the top: screen tabs, a mode indicator (STANDBY, LIVE,
+  READY, REVIEW), the recording, model, sampling rate, filter and a clock.
+- **Waveforms** in the referential montage, one channel per row with its 10-20
+  label. C3, Cz and C4, the channels over the motor cortex, are drawn brighter.
+  The grid has a major line each second and a minor line each 0.2 s, time is
+  measured from the cue, and everything after 4 s (when imagery ends) is shaded
+  as REST. A calibration bar in the corner gives the amplitude in µV.
+- **Parameter column** of large numeric readouts. Each class has its own colour,
+  always printed beside its name so colour is never the only cue.
+- **Status chips**: green MATCH, red MISS, outlined while waiting.
+- **Soft keys** along the bottom edge, each with a keyboard shortcut
+  (Space start/freeze, N next, T show truth, R replay, Enter run).
+
+The rest of this section covers the Review screen.
 
 Nothing leaves your machine, the server binds to loopback only and the page
 talks to it over plain JSON.
@@ -402,7 +426,7 @@ opening a browser.
 
 ## 7. The live view, you see the answer, the model does not
 
-At <http://127.0.0.1:8000/live>, or from the link at the top of the test bench.
+At <http://127.0.0.1:8000/live>, the **Monitor** tab in the status bar.
 
 Trials stream past a trained detector one window at a time. You watch the traces
 go by, watch the model's four probabilities move as it makes up its mind, and the
@@ -473,9 +497,12 @@ demonstration of why the epoch window mattered so much (section 2).
 
 ## 8. Identify a signal you choose
 
-At <http://127.0.0.1:8000/identify>.
+At <http://127.0.0.1:8000/identify>, the **Identify** tab in the status bar.
 
 ![Identifying EEG signals in the browser](../docs/identify-demo.gif)
+
+*(The recording above shows the earlier light design; the screen now uses the
+monitor layout described in section 6.)*
 
 The live stream plays trials in order. This one hands you the list: every signal
 the model has never seen, each with a thumbnail of its waveform and its real
@@ -661,9 +688,10 @@ do not need it.
 | `app.py` | CLI: the matplotlib test bench: choose recording, class, window and model, press Run |
 | `server.py` | CLI: the test bench served to your browser, plus the live view, with a run-history table |
 | `live.py` | The live session: trains on one split, streams the other, keeps the label off the model's path |
-| `bench_page.py` | The test bench's HTML |
-| `live_page.py` | The live stream's HTML, kept out of `server.py` so both stay readable |
-| `identify_page.py` | The identify view's HTML: the signal picker and confidence ring |
+| `monitor_theme.py` | The shared monitor look: colours, status bar, soft keys, and the EEG and trend renderers |
+| `bench_page.py` | The Review screen's HTML |
+| `live_page.py` | The Monitor screen's HTML |
+| `identify_page.py` | The Identify screen's HTML: the trial queue and readouts |
 | `../tests/test_detector.py` | End-to-end checks over the real recordings |
 | `../tests/test_live.py` | Checks the live view's promise that the label never reaches the model |
 | `../tests/test_holdout.py` | Checks the 50/25/25 split and the metrics |

@@ -79,12 +79,14 @@ def test_probabilities_are_a_real_distribution(session):
 
 
 def test_traces_are_drawable(session):
-    """The page draws three channels of bounded, finite numbers."""
+    """The page draws every montage channel as bounded, finite numbers with a µV scale."""
 
     frame = session.trial(0)['frames'][0]
     traces = frame['traces']
 
-    assert len(traces) == len(session.channel_rows)
+    assert len(traces) == len(session.channel_rows) == 22
+    assert frame['uv'] > 0, 'the calibration bar needs microvolts per unit'
+    assert set(session.describe()['focus_channels']) == {'C3', 'Cz', 'C4'}
     for channel in traces:
         assert len(channel) > 20
         assert all(np.isfinite(v) for v in channel)

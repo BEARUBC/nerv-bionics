@@ -21,19 +21,21 @@ _require('classification.live')
 
 import numpy as np
 
-from classification.data import CLASSES, load_mat_epochs, DEFAULT_DATA_DIR
+from classification.data import CHANNEL_NAMES, CLASSES, load_mat_epochs, DEFAULT_DATA_DIR
 from classification.detector import DEFAULT_MODEL, MotorImageryDetector
 from classification.preprocessing import prepare
 from classification.realtime import OnlineDecoder
 
-# Channels drawn on screen. Motor imagery shows up over the motor cortex, so
-# these are the three worth watching.
-DISPLAY_CHANNELS = ('C3', 'Cz', 'C4')
+# Channels drawn on screen: the full 22-channel montage, as an EEG monitor shows
+# it. Motor imagery shows up over the motor cortex, so the page highlights the
+# three channels worth watching.
+DISPLAY_CHANNELS = CHANNEL_NAMES
+FOCUS_CHANNELS = ('C3', 'Cz', 'C4')
 
-# Points per channel sent to the browser for one window. The window is 750
-# samples; drawing every one is wasted bandwidth for a line a few hundred pixels
-# wide.
-DISPLAY_POINTS = 180
+# Points per channel sent to the browser for one window. A 4 s window is 1000
+# samples; every second sample keeps the 8-30 Hz rhythms intact (125 Hz drawn)
+# while halving the payload.
+DISPLAY_POINTS = 500
 
 # Points in a picker thumbnail. Coarser than the live scope on purpose.
 PREVIEW_POINTS = 60
@@ -118,8 +120,6 @@ class LiveSession:
             Name and row index for each channel drawn.
         """
 
-        from classification.data import CHANNEL_NAMES
-
         return [(name, CHANNEL_NAMES.index(name))
                 for name in DISPLAY_CHANNELS if name in CHANNEL_NAMES]
 
@@ -141,7 +141,11 @@ class LiveSession:
             'step_s': self.step_s,
             'smoothing': self.smoothing,
             'channels': [name for name, _ in self.channel_rows],
+            'focus_channels': [name for name in FOCUS_CHANNELS if name in CHANNEL_NAMES],
             'window_s': self.detector.window_samples / self.fs,
+            'fs': self.fs,
+            'tmin': self.detector.tmin,
+            'band': list(self.detector.band) if self.detector.band else None,
         }
 
     def catalog(self):
@@ -159,7 +163,7 @@ class LiveSession:
 
         # A wider, coarser trace than the live scope: this is a thumbnail, and
         # one channel is enough to tell trials apart at a glance.
-        row = self.channel_rows[len(self.channel_rows) // 2][1]
+        row = CHANNEL_NAMES.index('Cz')
         entries = []
 
         for index in range(self.n_trials):
@@ -239,9 +243,11 @@ class LiveSession:
             # floor; the page still wants to show what it was leaning towards.
             leading = max(decision.probabilities, key=decision.probabilities.get)
 
+            traces, uv_per_unit = self._downsample(current)
             frames.append({
                 't': round((sample_index + 1) / self.fs, 3),
-                'traces': self._downsample(current),
+                'traces': traces,
+                'uv': uv_per_unit,
                 'probabilities': {k: round(v, 4) for k, v in decision.probabilities.items()},
                 'label': leading,
                 'called': decision.label is not None,
@@ -261,8 +267,10 @@ class LiveSession:
         Returns
         -------
         list[list[float]]
-            One list of points per display channel, scaled to roughly -1..1 so
-            the page does not need to know about microvolts.
+            One list of points per display channel, scaled to roughly -1..1.
+        float
+            Microvolts per unit of that scale. Every channel shares it, as on a
+            clinical display, so the page can draw a calibration bar.
         """
 
         picks = [row for _, row in self.channel_rows]
@@ -275,4 +283,4 @@ class LiveSession:
         # flatten the whole trace.
         scale = float(np.percentile(np.abs(reduced), 98)) or 1.0
 
-        return [[round(float(v / scale), 3) for v in channel] for channel in reduced]
+        return [[round(float(v / scale), 3) for v in channel] for channel in reduced], round(scale, 2)

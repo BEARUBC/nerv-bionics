@@ -62,9 +62,9 @@ which is a data-volume result worth revisiting once the other seven recordings a
 added.
 
 ```bash
-./run_ui.sh   # http://127.0.0.1:8000           test bench: pick settings, run a test
-              # http://127.0.0.1:8000/live      live stream of unseen trials
-              # http://127.0.0.1:8000/identify  pick a signal, watch it be identified
+./run_ui.sh   # http://127.0.0.1:8000/live      Monitor: 22-channel EEG, live detector readouts
+              # http://127.0.0.1:8000/identify  Identify: pick a held-out trial, watch it be named
+              # http://127.0.0.1:8000           Review: run a test, read accuracy and precision
 ```
 
 `run_ui.sh` picks an interpreter that has the dependencies. For the other tools,

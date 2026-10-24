@@ -1,366 +1,251 @@
-"""The HTML for the live view, kept out of server.py so both stay readable."""
+"""The HTML for the monitor screen: held-out trials stream past the detector live."""
+
+from classification.monitor_theme import MONITOR_JS, THEME_CSS, status_bar
 
 LIVE_PAGE = r"""<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Live, motor imagery</title>
+<title>Monitor, NERV motor imagery</title>
 <style>
-  :root {
-    --ground:#E9EDEF; --panel:#FFF; --ink:#131C21; --muted:#5A6A72; --faint:#8798A0;
-    --rule:#D2DADD; --accent:#0B6E5F; --accent-soft:#D8EAE5; --bad:#9E2B26;
-    --secret:#7A4B00; --secret-bg:#FBEFD8; --secret-rule:#D8A94A;
-    --left:#2E6E9E; --right:#A85F18; --foot:#67539B; --tongue:#2C7A57;
-    --trace:#8AA3AC;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --ground:#0E1417; --panel:#161F23; --ink:#E4ECEE; --muted:#9DAEB5; --faint:#74868E;
-      --rule:#2A383E; --accent:#58C4AC; --accent-soft:#123A32; --bad:#E0766F;
-      --secret:#E8B84B; --secret-bg:#31280F; --secret-rule:#6B551C;
-      --left:#74ADDA; --right:#DFA365; --foot:#A899DD; --tongue:#6EC59C;
-      --trace:#5C7079;
-    }
-  }
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--ground);color:var(--ink);
-       font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-  .wrap{max-width:1080px;margin:0 auto;padding:26px 20px 70px}
-  h1{font-size:25px;margin:0 0 4px;letter-spacing:-.02em}
-  .sub{color:var(--muted);margin:0 0 8px}
-  a{color:var(--accent)}
-  .card{background:var(--panel);border:1px solid var(--rule);border-radius:6px;padding:18px}
-
-  .promise{border-left:4px solid var(--accent);background:var(--panel);
-           border:1px solid var(--rule);border-left-width:4px;border-radius:5px;
-           padding:13px 16px;margin:18px 0;font-size:14px;color:var(--muted)}
-  .promise b{color:var(--ink)}
-
-  .bar-controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:16px 0}
-  select,button{font:inherit;border-radius:5px;border:1px solid var(--rule);padding:8px 12px;
-                background:var(--panel);color:var(--ink);cursor:pointer}
-  button.primary{background:var(--accent);color:var(--panel);border-color:var(--accent);font-weight:600}
-  button:disabled{opacity:.5;cursor:not-allowed}
-  .tally{margin-left:auto;font:13px ui-monospace,Menlo,monospace;color:var(--muted)}
-
-  .scope{margin-top:4px}
-  .scope svg{display:block;width:100%;height:190px}
-  .chlabel{font:11px ui-monospace,Menlo,monospace;fill:var(--faint)}
-  .clock{font:12px ui-monospace,Menlo,monospace;color:var(--faint);
-         display:flex;justify-content:space-between;margin-top:6px}
-
-  .two{display:grid;grid-template-columns:1fr 330px;gap:18px;margin-top:18px;align-items:start}
-  @media (max-width:800px){.two{grid-template-columns:1fr}}
-
-  .bars{display:grid;gap:8px}
-  .bar{display:grid;grid-template-columns:58px 1fr 44px;gap:10px;align-items:center}
-  .bar .nm{font-size:13px;color:var(--muted)}
-  .track{height:20px;background:var(--ground);border:1px solid var(--rule);
-         border-radius:3px;position:relative;overflow:hidden}
-  .fill{position:absolute;inset:0 auto 0 0;transition:width .28s ease}
-  .chance{position:absolute;top:-1px;bottom:-1px;left:25%;border-left:2px dashed var(--bad)}
-  .bar .pc{font:600 13px ui-monospace,Menlo,monospace;text-align:right}
-
-  .verdict{text-align:center;padding:20px 16px}
-  .verdict .cap{font:11px ui-monospace,Menlo,monospace;letter-spacing:.1em;
-                text-transform:uppercase;color:var(--faint)}
-  .verdict .big{font-size:38px;font-weight:700;letter-spacing:-.02em;margin:6px 0 2px;line-height:1.1}
-  .verdict .conf{font:13px ui-monospace,Menlo,monospace;color:var(--muted)}
-
-  .secret{margin-top:14px;background:var(--secret-bg);border:1px dashed var(--secret-rule);
-          border-radius:6px;padding:16px;text-align:center}
-  .secret .cap{font:11px ui-monospace,Menlo,monospace;letter-spacing:.09em;
-               text-transform:uppercase;color:var(--secret)}
-  .secret .big{font-size:30px;font-weight:700;margin:6px 0 2px;line-height:1.1}
-  .secret .note{font-size:12px;color:var(--secret)}
-  .secret.hidden .big{filter:blur(11px);user-select:none}
-
-  .log{margin-top:22px}
-  table{border-collapse:collapse;width:100%;font-size:13.5px}
-  th,td{padding:7px 10px;border-bottom:1px solid var(--rule);text-align:right}
-  th:first-child,td:first-child{text-align:left}
-  th{font:600 11px ui-monospace,Menlo,monospace;letter-spacing:.07em;
-     text-transform:uppercase;color:var(--faint)}
-  td{font-family:ui-monospace,Menlo,monospace}
-  .ok{color:var(--accent);font-weight:700}
-  .miss{color:var(--bad);font-weight:700}
-  .err{color:var(--bad);border:1px solid var(--bad);border-radius:5px;padding:13px;margin-top:14px}
-  .muted{color:var(--muted)}
-  label.chk{display:inline-flex;align-items:center;gap:7px;font-size:14px;color:var(--muted);cursor:pointer}
-  label.chk input{accent-color:var(--accent);width:15px;height:15px;cursor:pointer}
+__THEME_CSS__
+  .layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:10px;align-items:start}
+  @media (max-width:900px){.layout{grid-template-columns:1fr}}
+  .side{display:grid;gap:10px}
+  .truth.hidden .v{filter:blur(10px);user-select:none}
+  .split2{display:grid;grid-template-columns:1fr 1fr}
+  .split2 .param:first-child{border-right:1px solid var(--line)}
+  .param .v.mid{font-size:28px}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>Live view</h1>
-  <p class="sub">Trials stream past a trained detector in real time. <a href="/">Back to the test bench</a></p>
+__STATUS__
 
-  <div class="promise">
-    <b>The model cannot see the answer.</b> The detector was trained on one part of
-    the recording; everything streamed here is from the part it was held out of. The
-    true label is attached to the response <i>after</i> the model has produced its
-    probabilities, so it reaches your screen and never the classifier.
-  </div>
+<main class="screen">
+  <div class="layout">
+    <div style="display:grid;gap:10px;min-width:0">
+      <section class="panel" aria-label="EEG waveforms">
+        <div class="ph">EEG · 22 ch · referential<span class="r" id="scopeInfo">time from cue · motor channels highlighted</span></div>
+        <div class="scope"><canvas id="scope"></canvas></div>
+        <div class="banner"><span class="chip wait" id="phase">STANDBY</span>
+          <span id="banner">Press START to stream trials the model has never seen.</span></div>
+      </section>
 
-  <div class="bar-controls">
-    <select id="subject"></select>
-    <select id="speed">
-      <option value="1">real time</option>
-      <option value="2" selected>2× speed</option>
-      <option value="4">4× speed</option>
-      <option value="0">as fast as possible</option>
-    </select>
-    <button class="primary" id="play">Start</button>
-    <button id="next" disabled>Skip trial</button>
-    <label class="chk"><input type="checkbox" id="peek"> show the answer straight away</label>
-    <span class="tally" id="tally">no runs yet</span>
-  </div>
+      <section class="panel" aria-label="Probability trend">
+        <div class="ph">Class probability trend<span class="r">dashed line = 25 % chance</span></div>
+        <div style="padding:6px 0 4px"><canvas id="trend"></canvas></div>
+      </section>
 
-  <div class="card scope">
-    <svg id="scope" viewBox="0 0 900 190" preserveAspectRatio="none" aria-label="EEG traces"></svg>
-    <div class="clock">
-      <span id="clockL">waiting</span>
-      <span id="clockR"></span>
-    </div>
-  </div>
-
-  <div class="two">
-    <div class="card">
-      <div style="font-size:14px;font-weight:600;margin-bottom:3px">What the model thinks, as it watches</div>
-      <div class="muted" style="font-size:13px;margin-bottom:14px">Updates every window. Dashed line is the 25% chance level.</div>
-      <div class="bars" id="bars"></div>
+      <section class="panel" aria-label="Event log">
+        <div class="ph">Event log<span class="r" id="tally">no trials yet</span></div>
+        <div class="events"><table><thead><tr><th>time</th><th>trial</th><th>true</th><th>called</th><th class="num">conf</th><th>result</th></tr></thead>
+          <tbody id="log"><tr><td colspan="6" class="muted">no trials yet</td></tr></tbody></table></div>
+      </section>
+      <div id="error"></div>
     </div>
 
-    <div>
-      <div class="card verdict">
-        <div class="cap">Model says</div>
-        <div class="big" id="call">waiting</div>
-        <div class="conf" id="conf">waiting for the first full window</div>
-      </div>
+    <aside class="side">
+      <section class="panel" aria-label="Detector output">
+        <div class="param">
+          <div class="k"><span>MI class</span><span id="called" class="chip wait">--</span></div>
+          <div class="v" id="call" style="text-transform:uppercase">--</div>
+          <div class="s" id="callNote">waiting for the first full window</div>
+        </div>
+        <div class="param">
+          <div class="k"><span>Confidence</span><span id="win">--</span></div>
+          <div class="v" id="conf">--<small>%</small></div>
+        </div>
+        <div class="param"><div class="k"><span>Probability</span></div><div id="probs"></div></div>
+        <div class="param truth hidden" id="truthBox">
+          <div class="k"><span>True label</span><span id="match" class="chip wait">hidden</span></div>
+          <div class="v mid" id="truth" style="text-transform:uppercase">hidden</div>
+          <div class="s" id="truthNote">revealed when the trial ends</div>
+        </div>
+      </section>
 
-      <div class="secret hidden" id="secret">
-        <div class="cap">For your eyes only</div>
-        <div class="big" id="truth">hidden</div>
-        <div class="note" id="truthNote">hidden until the trial ends</div>
-      </div>
-    </div>
+      <section class="panel" aria-label="Session">
+        <div class="ph">Session</div>
+        <div class="split2">
+          <div class="param"><div class="k">Accuracy</div><div class="v mid" id="acc">--</div><div class="s" id="accN">0 / 0</div></div>
+          <div class="param"><div class="k">Trial</div><div class="v mid" id="trialN">--</div><div class="s" id="trialOf">of --</div></div>
+        </div>
+        <div class="param"><div class="k">Detector</div>
+          <div class="s" id="detInfo">not trained yet</div></div>
+      </section>
+    </aside>
   </div>
+</main>
 
-  <div class="log">
-    <table id="log"><tbody><tr><td class="muted">no trials yet</td></tr></tbody></table>
-  </div>
-  <div id="error"></div>
+<div class="softkeys" role="toolbar" aria-label="Controls">
+  <button class="key primary" id="play"><span id="playTxt">Start</span><kbd>Space</kbd></button>
+  <button class="key" id="next" disabled>Next trial<kbd>N</kbd></button>
+  <button class="key" id="peek">Show truth<kbd>T</kbd></button>
+  <label class="key">Speed <select id="speed">
+    <option value="1">1×</option><option value="2" selected>2×</option><option value="4">4×</option><option value="0">max</option>
+  </select></label>
+  <label class="key">Rec <select id="subject"></select></label>
+  <span class="spacer"></span>
+  <span class="readout">held-out trials only · label attached after the model has answered</span>
 </div>
 
 <script>
 const CONFIG = __CONFIG__;
 const CLASSES = CONFIG.classes;
-const COLORS = {left:'var(--left)', right:'var(--right)', foot:'var(--foot)', tongue:'var(--tongue)'};
+__MONITOR_JS__
 
-const el = id => document.getElementById(id);
-const subjectSel = el('subject'), speedSel = el('speed');
-const playBtn = el('play'), nextBtn = el('next'), peek = el('peek');
+const LABELS = Object.fromEntries(CONFIG.models.map(m => [m.key, m.label]));
+const scope = new Scope($('scope'));
+const trend = new Trend($('trend'), CLASSES);
+probRows('probs', CLASSES);
 
-subjectSel.innerHTML = CONFIG.subjects.map(s => `<option>${s}</option>`).join('');
+$('subject').innerHTML = CONFIG.subjects.map(s => `<option>${s}</option>`).join('');
+$('st_rec').textContent = $('subject').value;
+$('st_filter').textContent = '0.5-100 Hz · N50';
+scope.clear(CONFIG.channel_names);
 
-el('bars').innerHTML = CLASSES.map(c => `
-  <div class="bar">
-    <span class="nm">${c}</span>
-    <span class="track"><span class="fill" id="f_${c}" style="width:0%;background:${COLORS[c]}"></span><span class="chance"></span></span>
-    <span class="pc" id="p_${c}">0%</span>
-  </div>`).join('');
+let session = null, order = [], running = false, cancelled = false, peek = false, log = [];
 
-let session = null;     // description from the server
-let order = [];         // trial indices still to play
-let running = false;
-let cancelled = false;
-let log = [];           // {index, truth, call, conf, ok}
+function setError(m) { $('error').innerHTML = m ? `<div class="err">${m}</div>` : ''; }
 
-function setError(msg) {
-  el('error').innerHTML = msg ? `<div class="err">${msg}</div>` : '';
+function windowStart(f) { return session.tmin + f.t - session.window_s; }
+
+function showFrame(f, i) {
+  const t0 = windowStart(f);
+  scope.draw({channels: session.channels, focus: session.focus_channels, traces: f.traces,
+              uv: f.uv, t0, dur: session.window_s, restFrom: 4.0});
+  $('scopeInfo').textContent = `${t0.toFixed(1)}–${(t0 + session.window_s).toFixed(1)} s after cue · motor channels highlighted`;
+  $('call').textContent = f.label;
+  $('call').style.color = `var(${CLASS_VAR[f.label]})`;
+  $('called').className = 'chip ' + (f.called ? 'ok' : 'wait');
+  $('called').textContent = f.called ? 'called' : 'low conf';
+  $('conf').innerHTML = Math.round(f.confidence * 100) + '<small>%</small>';
+  $('win').textContent = 'window ' + (i + 1);
+  setProbs('probs', CLASSES, f.probabilities);
+  trend.push(t0 + session.window_s, f.probabilities);
+  $('phase').className = 'chip ' + (i === 0 ? 'ok' : 'wait');
+  $('phase').textContent = i === 0 ? 'decision' : 'sliding';
+  $('banner').textContent = i === 0
+    ? 'First full window: this is the decision point.'
+    : 'Window slides on into the rest period; later windows are for display only.';
+  $('callNote').textContent = i === 0 ? 'decision window' : 'tracking, decision already taken';
 }
 
-async function post(url, body) {
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(body),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'request failed');
-  return data;
-}
-
-function drawTraces(traces) {
-  const W = 900, H = 190, n = traces.length;
-  const lane = H / n;
-  const parts = [];
-
-  traces.forEach((points, i) => {
-    const mid = lane * i + lane / 2;
-    const amp = lane * 0.38;
-    const d = points.map((v, j) => {
-      const x = (j / (points.length - 1)) * W;
-      const y = mid - v * amp;
-      return `${j ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`;
-    }).join(' ');
-    parts.push(`<path d="${d}" fill="none" stroke="var(--trace)" stroke-width="1.1"
-                 stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`);
-    parts.push(`<text class="chlabel" x="6" y="${(mid - lane * 0.32).toFixed(1)}">${CONFIG.channels[i] || ''}</text>`);
-  });
-
-  el('scope').innerHTML = parts.join('');
-}
-
-function showFrame(frame, frameIndex) {
-  drawTraces(frame.traces);
-
-  CLASSES.forEach(c => {
-    const p = frame.probabilities[c] ?? 0;
-    el('f_' + c).style.width = (p * 100).toFixed(1) + '%';
-    el('p_' + c).textContent = Math.round(p * 100) + '%';
-  });
-
-  el('call').textContent = frame.label;
-  el('call').style.color = COLORS[frame.label] || 'var(--ink)';
-  el('conf').textContent = `${Math.round(frame.confidence * 100)}% confident`;
-
-  el('clockL').textContent = `${frame.t.toFixed(2)} s into the trial`;
-  el('clockR').textContent = frameIndex === 0
-    ? 'first full window, the model is at its most accurate here'
-    : `window ${frameIndex + 1}, sliding past the imagery`;
-}
-
-function revealTruth(truth, call) {
-  const box = el('secret');
-  box.classList.remove('hidden');
-  el('truth').textContent = truth;
-  el('truth').style.color = COLORS[truth] || 'var(--ink)';
-  el('truthNote').textContent = truth === call
-    ? 'the model got this one right'
-    : `the model said ${call}`;
-}
-
-function hideTruth() {
-  el('secret').classList.add('hidden');
-  el('truth').textContent = 'hidden';
-  el('truthNote').textContent = peek.checked ? 'revealing…' : 'hidden until the trial ends';
+function showTruth(truth, call, final) {
+  $('truthBox').classList.toggle('hidden', !(final || peek));
+  if (!(final || peek)) { $('truth').textContent = 'hidden'; $('match').className = 'chip wait'; $('match').textContent = 'hidden'; return; }
+  $('truth').textContent = truth;
+  $('truth').style.color = `var(${CLASS_VAR[truth]})`;
+  if (final) {
+    const ok = truth === call;
+    $('match').className = 'chip ' + (ok ? 'ok' : 'miss');
+    $('match').textContent = ok ? 'match' : 'miss';
+    $('truthNote').textContent = ok ? 'the model got this one right' : `the model said ${call}`;
+  } else {
+    $('match').className = 'chip wait'; $('match').textContent = 'peeking';
+    $('truthNote').textContent = 'shown early because Show truth is on';
+  }
 }
 
 function renderLog() {
-  const body = document.querySelector('#log tbody');
-  if (!log.length) { body.innerHTML = '<tr><td class="muted">no trials yet</td></tr>'; return; }
-  const head = `<tr><th>trial</th><th>really was</th><th>model said</th><th>confidence</th><th></th></tr>`;
-  body.innerHTML = head + log.slice().reverse().slice(0, 15).map(r => `
-    <tr>
-      <td>${r.index + 1}</td>
-      <td style="color:${COLORS[r.truth]}">${r.truth}</td>
-      <td>${r.call}</td>
-      <td>${Math.round(r.conf * 100)}%</td>
-      <td class="${r.ok ? 'ok' : 'miss'}">${r.ok ? 'ok' : 'miss'}</td>
-    </tr>`).join('');
-}
-
-function updateTally() {
-  if (!log.length) { el('tally').textContent = 'no runs yet'; return; }
+  if (!log.length) { $('log').innerHTML = '<tr><td colspan="6" class="muted">no trials yet</td></tr>'; $('tally').textContent = 'no trials yet'; return; }
+  $('log').innerHTML = log.slice().reverse().map(r => `<tr>
+    <td>${r.time}</td><td>#${r.index + 1}</td>
+    <td style="color:var(${CLASS_VAR[r.truth]})">${r.truth.toUpperCase()}</td>
+    <td style="color:var(${CLASS_VAR[r.call]})">${r.call.toUpperCase()}</td>
+    <td class="num">${Math.round(r.conf * 100)}%</td>
+    <td><span class="chip ${r.ok ? 'ok' : 'miss'}">${r.ok ? 'match' : 'miss'}</span></td></tr>`).join('');
   const hits = log.filter(r => r.ok).length;
-  el('tally').textContent = `${hits}/${log.length} correct (${Math.round(hits / log.length * 100)}%) · chance 25%`;
+  $('tally').textContent = `${hits}/${log.length} correct · chance 25 %`;
+  $('acc').textContent = Math.round(hits / log.length * 100) + '%';
+  $('accN').textContent = `${hits} / ${log.length} correct`;
 }
-
-const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 async function playTrial(index) {
-  const data = await post('/api/live/trial', {subject: subjectSel.value, index});
-  const frames = data.frames;
-  if (!frames.length) return;
+  const data = await post('/api/live/trial', {subject: $('subject').value, index});
+  if (!data.frames.length) return;
+  $('trialN').textContent = '#' + (index + 1);
+  trend.reset();
+  showTruth(data.truth, null, false);
 
-  hideTruth();
-  if (peek.checked) revealTruth(data.truth, '…');
-
-  const speed = parseFloat(speedSel.value);
-  const gap = speed === 0 ? 120 : (CONFIG.step_s * 1000) / speed;
-
-  for (let i = 0; i < frames.length; i++) {
+  const speed = parseFloat($('speed').value);
+  const gap = speed === 0 ? 120 : (session.step_s * 1000) / speed;
+  for (let i = 0; i < data.frames.length; i++) {
     if (cancelled) return;
-    showFrame(frames[i], i);
+    showFrame(data.frames[i], i);
     await sleep(gap);
   }
 
-  // The first full window is the model's best read; later windows slide past the
-  // imagery into the rest period and get steadily worse.
-  const decision = frames[0];
+  // The first full window is the model's best read; later windows slide past
+  // the imagery into the rest period. Redraw it so every readout agrees.
+  const decision = data.frames[0];
   const ok = decision.label === data.truth;
-
-  // Redraw the decision frame so the bars agree with the verdict above them.
+  const keep = trend.points.slice();
   showFrame(decision, 0);
-  revealTruth(data.truth, decision.label);
-  el('conf').textContent = `${Math.round(decision.confidence * 100)}% confident at the first full window`;
-  el('clockR').textContent = 'decision taken at the first full window';
+  trend.points = keep; trend.render();
+  showTruth(data.truth, decision.label, true);
+  $('banner').textContent = `Trial #${index + 1} done: decision taken at the first full window.`;
 
-  log.push({index, truth: data.truth, call: decision.label, conf: decision.confidence, ok});
+  log.push({index, truth: data.truth, call: decision.label, conf: decision.confidence, ok,
+            time: new Date().toLocaleTimeString([], {hour12: false})});
   renderLog();
-  updateTally();
-
-  await sleep(speed === 0 ? 200 : 1100);
+  await sleep(speed === 0 ? 250 : 1200);
 }
 
 async function run() {
   running = true; cancelled = false;
-  playBtn.textContent = 'Stop'; nextBtn.disabled = false;
-  setError('');
-
+  $('playTxt').textContent = 'Freeze'; $('next').disabled = false;
+  setMode('live', 'LIVE'); setError('');
   try {
-    if (!session || session.subject !== subjectSel.value) {
-      el('clockL').textContent = 'training the detector on the other split…';
-      session = await post('/api/live/start', {subject: subjectSel.value});
-      CONFIG.step_s = session.step_s;
-      CONFIG.channels = session.channels;
+    if (!session || session.subject !== $('subject').value) {
+      setMode('standby', 'TRAINING');
+      $('banner').textContent = 'Training the detector on the other part of the recording…';
+      session = await post('/api/live/start', {subject: $('subject').value});
       order = Array.from({length: session.n_trials}, (_, i) => i);
-      log = []; renderLog(); updateTally();
+      log = []; renderLog();
+      $('st_model').textContent = LABELS[session.model] || session.model;
+      $('st_fs').textContent = Math.round(session.fs) + ' Hz';
+      $('trialOf').textContent = `of ${session.n_trials} held out`;
+      $('detInfo').innerHTML = `trained on ${session.n_train} trials<br>window ${session.window_s.toFixed(1)} s · step ${session.step_s} s · smoothing ${session.smoothing}<br>model band ${session.band ? session.band.join('-') + ' Hz' : 'none'}`;
+      setMode('live', 'LIVE');
     }
-
     while (running && order.length) {
       if (cancelled) break;
       await playTrial(order.shift());
     }
-
-    if (!order.length) {
-      el('clockL').textContent = 'end of the held-out trials';
-      playBtn.textContent = 'Start';
-      running = false;
-    }
-  } catch (err) {
-    setError(err.message);
-    playBtn.textContent = 'Start';
-    running = false;
-  }
+    if (!order.length) { $('banner').textContent = 'End of the held-out trials.'; stop(); }
+  } catch (err) { setError(err.message); stop(); }
 }
 
-playBtn.addEventListener('click', () => {
-  if (running) {
-    running = false; cancelled = true;
-    playBtn.textContent = 'Start';
-    nextBtn.disabled = true;
-  } else {
-    run();
-  }
+function stop() {
+  running = false; cancelled = true;
+  $('playTxt').textContent = 'Start'; $('next').disabled = true;
+  setMode('standby', 'FROZEN');
+}
+
+$('play').addEventListener('click', () => running ? stop() : run());
+$('next').addEventListener('click', () => { cancelled = true; setTimeout(() => { cancelled = false; if (running) run(); }, 60); });
+$('peek').addEventListener('click', () => {
+  peek = !peek; $('peek').classList.toggle('on', peek);
+  if (!peek && running) showTruth(null, null, false);
+});
+$('subject').addEventListener('change', () => { $('st_rec').textContent = $('subject').value; session = null; stop(); setMode('standby', 'STANDBY'); });
+document.addEventListener('keydown', ev => {
+  if (ev.target.tagName === 'SELECT') return;
+  if (ev.code === 'Space') { ev.preventDefault(); $('play').click(); }
+  else if (ev.key === 'n' || ev.key === 'N') { if (!$('next').disabled) $('next').click(); }
+  else if (ev.key === 't' || ev.key === 'T') { $('peek').click(); }
 });
 
-nextBtn.addEventListener('click', () => { cancelled = true; setTimeout(() => { cancelled = false; if (running) run(); }, 60); });
-peek.addEventListener('change', () => { if (!peek.checked) hideTruth(); });
-subjectSel.addEventListener('change', () => { session = null; running = false; cancelled = true; playBtn.textContent = 'Start'; });
-
-// Settings can come from the URL, so a view worth showing someone can be linked.
-// ?auto=1 starts it on load.
+// ?subject=A04T&speed=4&peek=1&auto=1 opens a configured view; auto=1 starts it.
 (function applyQuery() {
   const q = new URLSearchParams(location.search);
-  if (q.has('subject') && CONFIG.subjects.includes(q.get('subject'))) subjectSel.value = q.get('subject');
-  if (q.has('speed')) speedSel.value = q.get('speed');
-  if (q.get('peek') === '1') peek.checked = true;
+  if (q.has('subject') && CONFIG.subjects.includes(q.get('subject'))) { $('subject').value = q.get('subject'); $('st_rec').textContent = q.get('subject'); }
+  if (q.has('speed')) $('speed').value = q.get('speed');
+  if (q.get('peek') === '1') $('peek').click();
   if (q.get('auto') === '1') run();
 })();
 </script>
 </body>
 </html>
-"""
+""".replace('__THEME_CSS__', THEME_CSS).replace('__STATUS__', status_bar('monitor')).replace('__MONITOR_JS__', MONITOR_JS)
