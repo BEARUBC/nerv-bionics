@@ -337,6 +337,9 @@ Shared conventions, defined once in `monitor_theme.py`:
 - **Status chips**: green MATCH, red MISS, outlined while waiting.
 - **Soft keys** along the bottom edge, each with a keyboard shortcut
   (Space start/freeze, N next, T show truth, R replay, Enter run).
+- **Nodes 8 / 22** soft key on Monitor and Identify: switch between the 8-electrode
+  model (`riemann_ensemble_8ch`, the default there) and all 22. Electrodes the
+  model does not read stay on screen, faded.
 
 The rest of this section covers the Review screen.
 
@@ -714,6 +717,7 @@ below therefore repeats the split 20 times:
 | TS + LR (previous default) | 0.5–3.5 s | 0.780 | 0.541 | 0.661 | – |
 | TS + LR | 0.5–4.5 s | 0.779 | 0.570 | 0.674 | 11 of 20 |
 | **Ensemble** | **0.5–4.5 s** | **0.815** | **0.573** | **0.694** | **14 of 20** |
+| Ensemble, 8 nodes only | 0.5–4.5 s | 0.769 | 0.566 | 0.668 | – |
 | Riemannian MDM | 0.5–3.5 s | 0.729 | 0.477 | 0.603 | 0 of 20 |
 | CSP + LDA | 0.5–3.5 s | 0.772 | 0.486 | 0.629 | 4 of 20 |
 

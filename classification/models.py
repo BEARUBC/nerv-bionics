@@ -22,6 +22,7 @@ Re-run the benchmark once the other seven BCI IV 2a subjects are in place before
 writing it off.
 """
 
+from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
@@ -31,6 +32,8 @@ from sklearn.svm import SVC
 from pyriemann.classification import MDM
 from pyriemann.estimation import Covariances
 from pyriemann.tangentspace import TangentSpace
+
+from classification.data import CHANNEL_NAMES
 
 # Covariance shrinkage. OAS is the safe default at 22 channels x a few hundred
 # samples, where the sample covariance is poorly conditioned.
@@ -54,6 +57,39 @@ N_CSP_COMPONENTS = 6
 TANGENT_SPACE_C = 0.01
 
 RANDOM_STATE = 42
+
+# The eight electrodes that identified the movement best together: greedy forward
+# selection with TS + LR, 5-fold CV on A01T and A04T, best first. They keep about
+# 93 % of the 22-channel accuracy and cover the FC, C and CP rows on both sides
+# and the midline. Chosen on the same two recordings they are scored on, so
+# re-run the selection when more subjects are added.
+TOP8_CHANNELS = ('CP3', 'CP4', 'CPz', 'FC4', 'C2', 'FC3', 'C1', 'Cz')
+
+
+class ChannelPicker(BaseEstimator, TransformerMixin):
+    """Keep only the named electrodes of a 22-channel epoch.
+
+    Putting the selection inside the model means everything around it (the
+    detector, the online decoder, the live view) keeps passing all 22 channels.
+
+    Parameters
+    ----------
+    channels : tuple[str, ...]
+        10-20 names, in :data:`classification.data.CHANNEL_NAMES`.
+    """
+
+    def __init__(self, channels=TOP8_CHANNELS):
+        self.channels = channels
+
+    def fit(self, X, y=None):
+        """Nothing to learn; returns self."""
+
+        return self
+
+    def transform(self, X):
+        """Return ``X`` restricted to the chosen channels, in their listed order."""
+
+        return X[:, [CHANNEL_NAMES.index(name) for name in self.channels], :]
 
 
 def build_riemann_ts_lr():
@@ -139,6 +175,24 @@ def build_riemann_ensemble():
     ])
 
 
+def build_riemann_ensemble_8ch():
+    """Rank 5: the rank 1 ensemble on the eight electrodes in :data:`TOP8_CHANNELS`.
+
+    For a smaller headset. Averaged over 20 random 50/25/25 splits it gives up a
+    few accuracy points against all 22 channels, see ``classification/README.md``.
+
+    Returns
+    -------
+    sklearn.pipeline.Pipeline
+        Unfitted pipeline taking 22-channel epochs; it uses only eight of them.
+    """
+
+    return Pipeline([
+        ('pick', ChannelPicker(TOP8_CHANNELS)),
+        ('ensemble', build_riemann_ensemble()),
+    ])
+
+
 def build_csp_svm():
     """Not selected: CSP log-variance features with an RBF support vector machine.
 
@@ -202,6 +256,13 @@ MODEL_REGISTRY = {
         'rank': 4,
         'needs_torch': False,
     },
+    'riemann_ensemble_8ch': {
+        'label': 'Riemannian ensemble, 8 nodes',
+        'builder': build_riemann_ensemble_8ch,
+        'rank': 5,
+        'needs_torch': False,
+        'channels': TOP8_CHANNELS,
+    },
     'csp_svm': {
         'label': 'CSP + SVM',
         'builder': build_csp_svm,
@@ -223,6 +284,23 @@ SELECTED_MODELS = tuple(
     )
     if spec['rank'] is not None
 )
+
+
+def model_channels(name):
+    """Electrodes a registered model actually uses.
+
+    Parameters
+    ----------
+    name : str
+        A key of :data:`MODEL_REGISTRY`.
+
+    Returns
+    -------
+    tuple[str, ...]
+        The model's own subset, or all of :data:`CHANNEL_NAMES`.
+    """
+
+    return tuple(MODEL_REGISTRY[name].get('channels') or CHANNEL_NAMES)
 
 
 def build_model(name, **kwargs):

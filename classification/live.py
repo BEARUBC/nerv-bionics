@@ -23,6 +23,7 @@ import numpy as np
 
 from classification.data import CHANNEL_NAMES, CLASSES, load_mat_epochs, DEFAULT_DATA_DIR
 from classification.detector import DEFAULT_MODEL, MotorImageryDetector
+from classification.models import model_channels
 from classification.preprocessing import prepare
 from classification.realtime import OnlineDecoder
 
@@ -142,6 +143,7 @@ class LiveSession:
             'smoothing': self.smoothing,
             'channels': [name for name, _ in self.channel_rows],
             'focus_channels': [name for name in FOCUS_CHANNELS if name in CHANNEL_NAMES],
+            'model_channels': list(model_channels(self.model_name)),
             'window_s': self.detector.window_samples / self.fs,
             'fs': self.fs,
             'tmin': self.detector.tmin,

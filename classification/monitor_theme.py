@@ -176,6 +176,16 @@ const CLASS_VAR = {left:'--left', right:'--right', foot:'--foot', tongue:'--tong
 const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const classColor = c => css(CLASS_VAR[c] || '--ink');
 
+// Which channels to highlight and which the model reads: a subset model lights up
+// its own electrodes; the full montage lights up the motor channels.
+function montage(session) {
+  const used = session.model_channels || session.channels;
+  const subset = used.length < session.channels.length;
+  return {focus: subset ? used : session.focus_channels, used: subset ? used : null,
+          text: subset ? `model reads ${used.length} of ${session.channels.length} nodes · faded = not used`
+                       : `model reads all ${used.length} nodes · motor channels highlighted`};
+}
+
 async function post(url, body) {
   const res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
   const data = await res.json();
@@ -246,15 +256,18 @@ class Scope {
     g.textAlign = 'left';
 
     const focus = new Set(d.focus || []);
+    // Channels the model ignores stay on screen, as on a real montage, but faded.
+    const used = d.used ? new Set(d.used) : null;
     d.channels.forEach((name, i) => {
       const mid = i * this.lane + this.lane / 2;
       const isFocus = focus.has(name);
+      g.globalAlpha = used && !used.has(name) ? 0.28 : 1;
       if (isFocus) { g.fillStyle = 'rgba(200,255,220,.045)'; g.fillRect(0, i * this.lane, W, this.lane); }
       g.fillStyle = css(isFocus ? '--trace-focus' : '--ink-3');
       g.font = (isFocus ? '600 ' : '') + '11px ' + css('--mono');
       g.fillText(name, 8, mid + 4);
       const pts = d.traces && d.traces[i];
-      if (!pts) return;
+      if (!pts) { g.globalAlpha = 1; return; }
       g.strokeStyle = css(isFocus ? '--trace-focus' : '--trace');
       g.lineWidth = isFocus ? 1.3 : 1;
       g.lineJoin = 'round';
@@ -266,6 +279,7 @@ class Scope {
         j ? g.lineTo(x, y) : g.moveTo(x, y);
       });
       g.stroke();
+      g.globalAlpha = 1;
     });
 
     // calibration bar: one lane-amplitude unit, labelled in microvolts

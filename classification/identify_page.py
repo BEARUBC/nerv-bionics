@@ -76,6 +76,7 @@ __STATUS__
 <div class="softkeys" role="toolbar" aria-label="Controls">
   <button class="key primary" id="nextBtn">Identify next<kbd>N</kbd></button>
   <button class="key" id="replay" disabled>Replay<kbd>R</kbd></button>
+  <label class="key">Nodes <select id="nodes"></select></label>
   <label class="key">Rec <select id="subject"></select></label>
   <span class="spacer"></span>
   <span class="readout">↑ ↓ move through the queue · Enter identifies</span>
@@ -91,6 +92,9 @@ const scope = new Scope($('scope'));
 const trend = new Trend($('trend'), CLASSES);
 probRows('probs', CLASSES);
 $('subject').innerHTML = CONFIG.subjects.map(s => `<option>${s}</option>`).join('');
+$('nodes').innerHTML = [['riemann_ensemble_8ch', '8'], ['riemann_ensemble', '22']]
+  .filter(([key]) => LABELS[key]).map(([key, n]) => `<option value="${key}">${n}</option>`).join('');
+$('nodes').value = CONFIG.live_default;
 $('st_filter').textContent = '0.5-100 Hz · N50';
 scope.clear(CONFIG.channel_names);
 
@@ -133,9 +137,10 @@ function updateTally() {
 
 function showFrame(f, i) {
   const t0 = session.tmin + f.t - session.window_s;
-  scope.draw({channels: session.channels, focus: session.focus_channels, traces: f.traces,
+  const mt = montage(session);
+  scope.draw({channels: session.channels, focus: mt.focus, used: mt.used, traces: f.traces,
               uv: f.uv, t0, dur: session.window_s, restFrom: 4.0});
-  $('scopeInfo').textContent = `trial #${current + 1} · ${t0.toFixed(1)}–${(t0 + session.window_s).toFixed(1)} s after cue`;
+  $('scopeInfo').textContent = `trial #${current + 1} · ${t0.toFixed(1)}–${(t0 + session.window_s).toFixed(1)} s after cue · ${mt.text}`;
   $('call').textContent = f.label;
   $('call').style.color = `var(${CLASS_VAR[f.label]})`;
   $('conf').innerHTML = Math.round(f.confidence * 100) + '<small>%</small>';
@@ -159,7 +164,7 @@ async function identify(index) {
   trend.reset();
 
   try {
-    const data = await post('/api/live/trial', {subject: $('subject').value, index});
+    const data = await post('/api/live/trial', {subject: $('subject').value, model: $('nodes').value, index});
     if (mine !== token) return;
     for (let i = 0; i < data.frames.length; i++) {
       if (mine !== token) return;
@@ -211,8 +216,8 @@ async function load() {
   $('st_rec').textContent = $('subject').value;
   $('queue').innerHTML = '<div class="pb muted">training the detector on the other part of the recording…</div>';
   try {
-    session = await post('/api/live/start', {subject: $('subject').value});
-    catalog = await post('/api/live/list', {subject: $('subject').value});
+    session = await post('/api/live/start', {subject: $('subject').value, model: $('nodes').value});
+    catalog = await post('/api/live/list', {subject: $('subject').value, model: $('nodes').value});
     results.clear(); current = null;
     $('st_model').textContent = LABELS[session.model] || session.model;
     $('st_fs').textContent = Math.round(session.fs) + ' Hz';
@@ -230,6 +235,7 @@ $('filters').addEventListener('click', ev => {
 $('nextBtn').addEventListener('click', () => { const i = nextUnseen(); if (i !== null) identify(i); });
 $('replay').addEventListener('click', () => { if (current !== null) identify(current); });
 $('subject').addEventListener('change', load);
+$('nodes').addEventListener('change', load);
 document.addEventListener('keydown', ev => {
   if (ev.target.tagName === 'SELECT') return;
   if (ev.key === 'n' || ev.key === 'N') $('nextBtn').click();
@@ -241,11 +247,12 @@ document.addEventListener('keydown', ev => {
   } else if (ev.key === 'Enter' && current !== null && !ev.target.closest('button')) identify(current);
 });
 
-// ?subject=A01T&signal=3 opens straight onto one trial; the number matches the
+// ?subject=A01T&nodes=22&signal=3 opens straight onto one trial; the number matches the
 // row label, which starts at 1.
 (async function boot() {
   const q = new URLSearchParams(location.search);
   if (q.has('subject') && CONFIG.subjects.includes(q.get('subject'))) $('subject').value = q.get('subject');
+  if (q.has('nodes')) $('nodes').value = q.get('nodes') === '22' ? 'riemann_ensemble' : 'riemann_ensemble_8ch';
   await load();
   if (q.has('signal')) {
     const n = parseInt(q.get('signal'), 10) - 1;

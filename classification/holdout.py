@@ -236,14 +236,14 @@ def main(argv=None):
 
     cache = RecordingCache()
     print(f'50/25/25 hold-out, {args.repeats} splits, window {args.tmin:g}-{args.tmax:g} s\n')
-    print(f'  {"model":<20}{"subject":<9}{"accuracy":>16}{"precision":>16}{"F1":>16}')
-    print('  ' + '-' * 77)
+    print(f'  {"model":<24}{"subject":<9}{"accuracy":>16}{"precision":>16}{"F1":>16}')
+    print('  ' + '-' * 81)
 
     for model_name in args.models:
         for subject in subjects:
             r = repeated_holdout(cache, subject, model_name, args.tmin, args.tmax, args.repeats)
             cells = ''.join(f'{r[k]["mean"]:>10.3f} ±{r[k]["std"]:.3f}' for k in ('accuracy', 'precision', 'f1'))
-            print(f'  {model_name:<20}{subject:<9}{cells}', flush=True)
+            print(f'  {model_name:<24}{subject:<9}{cells}', flush=True)
 
     print('\n  Test-set scores, mean ± standard deviation over the splits. Chance is 0.250.')
     return 0

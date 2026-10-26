@@ -18,7 +18,8 @@ import pytest
 
 from classification.data import CLASSES, available_subjects, load_subjects
 from classification.detector import MotorImageryDetector
-from classification.models import SELECTED_MODELS, build_model
+from classification.data import CHANNEL_NAMES
+from classification.models import SELECTED_MODELS, TOP8_CHANNELS, build_model
 from classification.preprocessing import prepare
 
 CHANCE = 0.25
@@ -189,6 +190,21 @@ def test_each_selected_model_trains_and_beats_chance(epochs, name):
     accuracy = model.score(X[TRAIN_TRIALS:], y[TRAIN_TRIALS:])
 
     assert accuracy > CHANCE + 0.10, f'{name} scored {accuracy:.3f}, barely above chance'
+
+
+def test_eight_node_model_reads_only_its_eight_channels(epochs):
+    """Scrambling the 14 electrodes it does not use must not change a single prediction."""
+
+    X, y, _ = epochs
+    model = build_model('riemann_ensemble_8ch').fit(X[:TRAIN_TRIALS], y[:TRAIN_TRIALS])
+
+    X_test = X[TRAIN_TRIALS:]
+    scrambled = X_test.copy()
+    unused = [i for i, name in enumerate(CHANNEL_NAMES) if name not in TOP8_CHANNELS]
+    scrambled[:, unused, :] = np.random.default_rng(0).normal(0, 50, scrambled[:, unused, :].shape)
+
+    assert len(unused) == 14
+    np.testing.assert_allclose(model.predict_proba(X_test), model.predict_proba(scrambled))
 
 
 def test_online_decoder_agrees_with_offline(trained):

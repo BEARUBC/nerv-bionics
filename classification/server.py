@@ -52,8 +52,11 @@ DEFAULT_PORT = 8000
 RUN_LOCK = threading.Lock()
 
 # Live sessions are expensive to build (they train a detector), so keep one per
-# recording once it exists.
+# recording and model once it exists.
 LIVE_SESSIONS = {}
+
+# The live screens start on the eight-electrode model; a soft key switches to all 22.
+LIVE_DEFAULT_MODEL = 'riemann_ensemble_8ch'
 LIVE_LOCK = threading.Lock()
 
 
@@ -77,6 +80,7 @@ def make_handler(cache, subjects):
         'subjects': subjects,
         'classes': list(CLASSES),
         'channel_names': list(CHANNEL_NAMES),
+        'live_default': LIVE_DEFAULT_MODEL,
         'models': [{'key': k, 'label': MODEL_REGISTRY[k]['label']} for k in SELECTED_MODELS],
     }
     serialised = json.dumps(config)
@@ -84,13 +88,15 @@ def make_handler(cache, subjects):
     live_page = LIVE_PAGE.replace('__CONFIG__', serialised)
     identify_page = IDENTIFY_PAGE.replace('__CONFIG__', serialised)
 
-    def live_session(subject):
-        """Return the live session for a recording, building it once.
+    def live_session(subject, model):
+        """Return the live session for a recording and model, building it once.
 
         Parameters
         ----------
         subject : str
             Dataset stem.
+        model : str
+            Registry key of the detector's pipeline.
 
         Returns
         -------
@@ -99,13 +105,14 @@ def make_handler(cache, subjects):
         """
 
         with LIVE_LOCK:
-            if subject not in LIVE_SESSIONS:
-                print(f'  building live session for {subject} (training the detector)...')
-                LIVE_SESSIONS[subject] = LiveSession(subject)
-                summary = LIVE_SESSIONS[subject].describe()
+            key = (subject, model)
+            if key not in LIVE_SESSIONS:
+                print(f'  building live session for {subject} with {model} (training the detector)...')
+                LIVE_SESSIONS[key] = LiveSession(subject, model=model)
+                summary = LIVE_SESSIONS[key].describe()
                 print(f'       trained on {summary["n_train"]} trials, '
                       f'streaming {summary["n_trials"]} it has never seen')
-            return LIVE_SESSIONS[subject]
+            return LIVE_SESSIONS[key]
 
     class Handler(BaseHTTPRequestHandler):
         """Serve the page and answer run requests."""
@@ -318,9 +325,13 @@ def make_handler(cache, subjects):
             if subject not in subjects:
                 self._fail(400, f'unknown recording {subject!r}')
                 return
+            model = request.get('model', LIVE_DEFAULT_MODEL)
+            if model not in SELECTED_MODELS:
+                self._fail(400, f'unknown model {model!r}')
+                return
 
             try:
-                summary = live_session(subject).describe()
+                summary = live_session(subject, model).describe()
             except Exception as exc:
                 traceback.print_exc()
                 self._fail(500, f'{type(exc).__name__}: {exc}')
@@ -340,9 +351,13 @@ def make_handler(cache, subjects):
             if subject not in subjects:
                 self._fail(400, f'unknown recording {subject!r}')
                 return
+            model = request.get('model', LIVE_DEFAULT_MODEL)
+            if model not in SELECTED_MODELS:
+                self._fail(400, f'unknown model {model!r}')
+                return
 
             try:
-                entries = live_session(subject).catalog()
+                entries = live_session(subject, model).catalog()
             except Exception as exc:
                 traceback.print_exc()
                 self._fail(500, f'{type(exc).__name__}: {exc}')
@@ -362,6 +377,10 @@ def make_handler(cache, subjects):
             if subject not in subjects:
                 self._fail(400, f'unknown recording {subject!r}')
                 return
+            model = request.get('model', LIVE_DEFAULT_MODEL)
+            if model not in SELECTED_MODELS:
+                self._fail(400, f'unknown model {model!r}')
+                return
 
             try:
                 index = int(request.get('index', 0))
@@ -370,7 +389,7 @@ def make_handler(cache, subjects):
                 return
 
             try:
-                session = live_session(subject)
+                session = live_session(subject, model)
                 with RUN_LOCK:
                     payload = session.trial(index)
             except IndexError as exc:

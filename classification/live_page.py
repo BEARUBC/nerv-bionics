@@ -84,6 +84,7 @@ __STATUS__
   <label class="key">Speed <select id="speed">
     <option value="1">1×</option><option value="2" selected>2×</option><option value="4">4×</option><option value="0">max</option>
   </select></label>
+  <label class="key">Nodes <select id="nodes"></select></label>
   <label class="key">Rec <select id="subject"></select></label>
   <span class="spacer"></span>
   <span class="readout">held-out trials only · label attached after the model has answered</span>
@@ -101,6 +102,10 @@ probRows('probs', CLASSES);
 
 $('subject').innerHTML = CONFIG.subjects.map(s => `<option>${s}</option>`).join('');
 $('st_rec').textContent = $('subject').value;
+// The live screens compare the 8-electrode model with the full 22-electrode one.
+$('nodes').innerHTML = [['riemann_ensemble_8ch', '8'], ['riemann_ensemble', '22']]
+  .filter(([key]) => LABELS[key]).map(([key, n]) => `<option value="${key}">${n}</option>`).join('');
+$('nodes').value = CONFIG.live_default;
 $('st_filter').textContent = '0.5-100 Hz · N50';
 scope.clear(CONFIG.channel_names);
 
@@ -112,9 +117,10 @@ function windowStart(f) { return session.tmin + f.t - session.window_s; }
 
 function showFrame(f, i) {
   const t0 = windowStart(f);
-  scope.draw({channels: session.channels, focus: session.focus_channels, traces: f.traces,
+  const mt = montage(session);
+  scope.draw({channels: session.channels, focus: mt.focus, used: mt.used, traces: f.traces,
               uv: f.uv, t0, dur: session.window_s, restFrom: 4.0});
-  $('scopeInfo').textContent = `${t0.toFixed(1)}–${(t0 + session.window_s).toFixed(1)} s after cue · motor channels highlighted`;
+  $('scopeInfo').textContent = `${t0.toFixed(1)}–${(t0 + session.window_s).toFixed(1)} s after cue · ${mt.text}`;
   $('call').textContent = f.label;
   $('call').style.color = `var(${CLASS_VAR[f.label]})`;
   $('called').className = 'chip ' + (f.called ? 'ok' : 'wait');
@@ -162,7 +168,7 @@ function renderLog() {
 }
 
 async function playTrial(index) {
-  const data = await post('/api/live/trial', {subject: $('subject').value, index});
+  const data = await post('/api/live/trial', {subject: $('subject').value, model: $('nodes').value, index});
   if (!data.frames.length) return;
   $('trialN').textContent = '#' + (index + 1);
   trend.reset();
@@ -197,16 +203,16 @@ async function run() {
   $('playTxt').textContent = 'Freeze'; $('next').disabled = false;
   setMode('live', 'LIVE'); setError('');
   try {
-    if (!session || session.subject !== $('subject').value) {
+    if (!session || session.subject !== $('subject').value || session.model !== $('nodes').value) {
       setMode('standby', 'TRAINING');
       $('banner').textContent = 'Training the detector on the other part of the recording…';
-      session = await post('/api/live/start', {subject: $('subject').value});
+      session = await post('/api/live/start', {subject: $('subject').value, model: $('nodes').value});
       order = Array.from({length: session.n_trials}, (_, i) => i);
       log = []; renderLog();
       $('st_model').textContent = LABELS[session.model] || session.model;
       $('st_fs').textContent = Math.round(session.fs) + ' Hz';
       $('trialOf').textContent = `of ${session.n_trials} held out`;
-      $('detInfo').innerHTML = `trained on ${session.n_train} trials<br>window ${session.window_s.toFixed(1)} s · step ${session.step_s} s · smoothing ${session.smoothing}<br>model band ${session.band ? session.band.join('-') + ' Hz' : 'none'}`;
+      $('detInfo').innerHTML = `trained on ${session.n_train} trials<br>window ${session.window_s.toFixed(1)} s · step ${session.step_s} s · smoothing ${session.smoothing}<br>model band ${session.band ? session.band.join('-') + ' Hz' : 'none'}<br>nodes (${session.model_channels.length}): ${session.model_channels.length < session.channels.length ? session.model_channels.join(', ') : 'all'}`;
       setMode('live', 'LIVE');
     }
     while (running && order.length) {
@@ -230,6 +236,7 @@ $('peek').addEventListener('click', () => {
   if (!peek && running) showTruth(null, null, false);
 });
 $('subject').addEventListener('change', () => { $('st_rec').textContent = $('subject').value; session = null; stop(); setMode('standby', 'STANDBY'); });
+$('nodes').addEventListener('change', () => { session = null; stop(); setMode('standby', 'STANDBY'); $('banner').textContent = 'Model changed. Press START to train it and stream.'; });
 document.addEventListener('keydown', ev => {
   if (ev.target.tagName === 'SELECT') return;
   if (ev.code === 'Space') { ev.preventDefault(); $('play').click(); }
@@ -237,11 +244,12 @@ document.addEventListener('keydown', ev => {
   else if (ev.key === 't' || ev.key === 'T') { $('peek').click(); }
 });
 
-// ?subject=A04T&speed=4&peek=1&auto=1 opens a configured view; auto=1 starts it.
+// ?subject=A04T&nodes=22&speed=4&peek=1&auto=1 opens a configured view; auto=1 starts it.
 (function applyQuery() {
   const q = new URLSearchParams(location.search);
   if (q.has('subject') && CONFIG.subjects.includes(q.get('subject'))) { $('subject').value = q.get('subject'); $('st_rec').textContent = q.get('subject'); }
   if (q.has('speed')) $('speed').value = q.get('speed');
+  if (q.has('nodes')) $('nodes').value = q.get('nodes') === '22' ? 'riemann_ensemble' : 'riemann_ensemble_8ch';
   if (q.get('peek') === '1') $('peek').click();
   if (q.get('auto') === '1') run();
 })();

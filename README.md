@@ -51,8 +51,10 @@ averaged over 20 random 50 / 25 / 25 train / check / test splits of both recordi
 | 2 | Riemannian tangent space + logistic regression | `riemann_ts_lr` | 0.661 |
 | 3 | Riemannian MDM | `riemann_mdm` | 0.603 |
 | 4 | CSP + LDA | `csp_lda` | 0.629 |
+| 5 | Riemannian ensemble on 8 nodes only (CP3, CP4, CPz, FC4, C2, FC3, C1, Cz), 0.5–4.5 s | `riemann_ensemble_8ch` | 0.668 |
 
-Ranks 2–4 are at the 0.5–3.5 s window. The ranking follows `models.py`, where MDM
+Ranks 2–4 are at the 0.5–3.5 s window. Rank 5 is for a smaller headset: it keeps 96 % of
+rank 1's accuracy with 8 of the 22 electrodes, and is the default on the live screens. The ranking follows `models.py`, where MDM
 sits above CSP + LDA because it calibrates faster and transfers better across
 subjects.
 
